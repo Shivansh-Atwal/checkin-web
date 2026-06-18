@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000/api`,
+  baseURL: import.meta.env.VITE_API_URL || `https://checkin-backend-70km.onrender.com/api`,
   headers: {
     'Content-Type': 'application/json',
   },
