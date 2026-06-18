@@ -1,0 +1,468 @@
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../utils/api';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, CheckSquare, Clock, Calendar, ShieldAlert, Loader2 } from 'lucide-react';
+
+interface Room {
+  id: string;
+  roomNumber: string;
+  roomType: string;
+}
+
+const CheckIn: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+
+  const [bookingId, setBookingId] = useState<string | null>(null);
+
+  // Form inputs (Arrival Date and Time defaults)
+  const [customerName, setCustomerName] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [roomId, setRoomId] = useState('');
+  const [numberOfGuests, setNumberOfGuests] = useState(1);
+  const [numberOfRooms, setNumberOfRooms] = useState(1); // Added number of rooms state
+  const [arrivalDate, setArrivalDate] = useState(new Date().toISOString().split('T')[0]);
+  const [arrivalTime, setArrivalTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [advancePaid, setAdvancePaid] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [idType, setIdType] = useState('Aadhaar Card');
+  const [idNumber, setIdNumber] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [country, setCountry] = useState(''); // Nationality
+  const [pincode, setPincode] = useState('');
+  const [registrationNumber, setRegistrationNumber] = useState('');
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill triggers
+  useEffect(() => {
+    if (location.state) {
+      if (location.state.bookingId) {
+        setBookingId(location.state.bookingId);
+      }
+      if (location.state.roomId) {
+        setRoomId(location.state.roomId);
+      }
+    }
+  }, [location.state]);
+
+  // Fetch booking details if converting
+  const { data: bookingRes } = useQuery({
+    queryKey: ['booking-prefill', bookingId],
+    queryFn: () => api.get(`/bookings/${bookingId}`).then((res) => res.data),
+    enabled: !!bookingId,
+  });
+
+  // Fetch Available Rooms
+  const { data: roomsRes } = useQuery({
+    queryKey: ['available-rooms-checkin'],
+    queryFn: () => api.get('/rooms?status=AVAILABLE').then((res) => res.data),
+  });
+
+  const rooms: Room[] = roomsRes?.data || [];
+  const bookingRoomInRooms = bookingRes?.data && rooms.some((r) => r.id === bookingRes.data.roomId);
+  const freeRoomsCount = rooms.length + (bookingId && !bookingRoomInRooms ? 1 : 0);
+
+  // Pre-fill form from booking when fetched
+  useEffect(() => {
+    if (bookingRes?.data) {
+      const b = bookingRes.data;
+      setCustomerName(b.customer.fullName);
+      setMobileNumber(b.customer.mobileNumber);
+      setRoomId(b.roomId);
+      setNumberOfGuests(b.numberOfGuests);
+      setPriceCost(b.price);
+      setAdvancePaid(0); // Additional paid on arrival
+    }
+  }, [bookingRes]);
+
+  const [priceCost, setPriceCost] = useState(1000);
+
+  // Submit Mutation
+  const checkinMutation = useMutation({
+    mutationFn: (payload: any) => {
+      const endpoint = bookingId ? '/stay/checkin/booking' : '/stay/checkin/walkin';
+      return api.post(endpoint, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      navigate('/');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Check-in failed.');
+      setLoading(false);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Secondary validation block
+    if (numberOfRooms > freeRoomsCount) {
+      setError(`Requested ${numberOfRooms} rooms but only ${freeRoomsCount} rooms are currently free.`);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    // Default stay calculations to 1 base night since check-out isn't scheduled
+    const nights = 1;
+    const totalEstimate = priceCost * nights * numberOfRooms;
+    const remainingAmount = Math.max(0, totalEstimate - advancePaid);
+
+    const payload: any = {
+      numberOfGuests: Number(numberOfGuests),
+      numberOfRooms: Number(numberOfRooms),
+      arrivalDate,
+      arrivalTime,
+      advancePaid: Number(advancePaid),
+      remainingAmount,
+      paymentMethod,
+      registrationNumber: registrationNumber || undefined,
+      pricePerNight: Number(priceCost),
+    };
+
+    if (roomId) {
+      payload.roomId = roomId;
+    }
+
+    if (bookingId) {
+      payload.bookingId = bookingId;
+    } else {
+      payload.customerName = customerName;
+      payload.mobileNumber = mobileNumber;
+      payload.address = address;
+      payload.city = city;
+      payload.state = state;
+      payload.country = country;
+      payload.pincode = pincode;
+      payload.document = {
+        idType,
+        idNumber,
+      };
+    }
+
+    checkinMutation.mutate(payload);
+  };
+
+  const isOvercapacity = numberOfRooms > freeRoomsCount;
+
+  return (
+    <div className="space-y-6 max-w-2xl mx-auto">
+      {/* Back button */}
+      <button
+        onClick={() => navigate('/')}
+        className="flex items-center text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to Dashboard
+      </button>
+
+      {error && (
+        <div className="p-4 bg-rose-500/15 border border-rose-500/30 rounded-xl text-sm text-rose-200">
+          {error}
+        </div>
+      )}
+
+      {/* Main card */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <h3 className="text-lg font-bold text-white mb-5 flex items-center">
+          <CheckSquare className="w-5 h-5 text-blue-500 mr-2.5" />
+          {bookingId ? 'Booking Arrival Check-In' : 'Walk-In Customer Check-In'}
+        </h3>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Guest Identity */}
+          {!bookingId ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Guest Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="e.g. Samuel L. Jackson"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Mobile Number</label>
+                  <input
+                    type="tel"
+                    required
+                    value={mobileNumber}
+                    onChange={(e) => setMobileNumber(e.target.value)}
+                    placeholder="e.g. 9876543210"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Customer Address Details */}
+              <div className="border-t border-slate-800/60 pt-4 space-y-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Address Details</h4>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Street Address</label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="e.g. 123 Main St, Apartment 4B"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">City</label>
+                    <input
+                      type="text"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      placeholder="e.g. New York"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">State</label>
+                    <input
+                      type="text"
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      placeholder="e.g. NY"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Pincode / Zip Code</label>
+                    <input
+                      type="text"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      placeholder="e.g. 10001"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Nationality</label>
+                    <input
+                      type="text"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      placeholder="e.g. Indian"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ID upload inputs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Government ID Type</label>
+                  <select
+                    value={idType}
+                    onChange={(e) => setIdType(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                  >
+                    <option value="Aadhaar Card">Aadhaar Card</option>
+                    <option value="Passport">Passport</option>
+                    <option value="Driving License">Driving License</option>
+                    <option value="Voter ID">Voter ID</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">ID Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={idNumber}
+                    onChange={(e) => setIdNumber(e.target.value)}
+                    placeholder="Document reference number"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="bg-slate-950/40 p-4 border border-slate-800 rounded-xl text-sm space-y-1">
+              <span className="text-xs text-slate-500">Reserved Guest Profile</span>
+              <p className="font-semibold text-white">{customerName}</p>
+              <p className="text-xs text-slate-400">{mobileNumber}</p>
+            </div>
+          )}
+
+          {/* Allocation details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Room Allocation</label>
+              {roomId ? (
+                <div className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3.5 text-sm text-slate-350">
+                  {bookingId 
+                    ? `Prefilled from Booking` 
+                    : `Selected Room: ${rooms.find(r => r.id === roomId)?.roomNumber || 'Room ' + roomId}`}
+                </div>
+              ) : (
+                <div className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3.5 text-sm text-emerald-400 font-semibold font-mono">
+                  Auto-Allocate Free Room
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Number of Guests</label>
+              <input
+                type="number"
+                min={1}
+                value={numberOfGuests}
+                onChange={(e) => setNumberOfGuests(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Rooms requested count */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Number of Rooms Requested</label>
+              <input
+                type="number"
+                min={1}
+                required
+                value={numberOfRooms}
+                onChange={(e) => setNumberOfRooms(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              />
+            </div>
+            <div className="flex flex-col justify-end">
+              <span className="text-xs text-slate-500 mb-1">Status of Free Rooms</span>
+              <span className="text-sm font-semibold text-slate-350 px-1 py-2 font-mono">
+                {freeRoomsCount} rooms are currently free
+              </span>
+            </div>
+          </div>
+
+          {/* Overcapacity Warnings */}
+          {isOvercapacity && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded-xl flex items-start">
+              <ShieldAlert className="w-4.5 h-4.5 mr-2.5 mt-0.5 shrink-0" />
+              <p>
+                Cannot proceed: You requested {numberOfRooms} rooms, but only {freeRoomsCount} rooms are currently free (available).
+              </p>
+            </div>
+          )}
+
+          {/* Custom Stay Registration Number */}
+          <div className="grid grid-cols-1 gap-4 border-t border-slate-800/60 pt-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Custom Registration Number (Optional)</label>
+              <input
+                type="text"
+                value={registrationNumber}
+                onChange={(e) => setRegistrationNumber(e.target.value)}
+                placeholder="e.g. REG-999 (Leave blank to auto-generate)"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-slate-650 outline-none transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Arrival Date & Arrival Time */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5 flex items-center">
+                <Calendar className="w-3.5 h-3.5 text-slate-500 mr-1.5" />
+                Arrival Date
+              </label>
+              <input
+                type="date"
+                required
+                value={arrivalDate}
+                onChange={(e) => setArrivalDate(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5 flex items-center">
+                <Clock className="w-3.5 h-3.5 text-slate-500 mr-1.5" />
+                Arrival Time
+              </label>
+              <input
+                type="time"
+                required
+                value={arrivalTime}
+                onChange={(e) => setArrivalTime(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800/60 pt-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Stay Cost/Night (₹)</label>
+              <input
+                type="number"
+                required
+                value={priceCost}
+                onChange={(e) => setPriceCost(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Deposit Advance Paid (₹)</label>
+              <input
+                type="number"
+                value={advancePaid}
+                onChange={(e) => setAdvancePaid(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Payment Method</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              >
+                <option value="Cash">Cash</option>
+                <option value="UPI">UPI / QR Scan</option>
+                <option value="Debit Card">Debit Card</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Form Submit */}
+          <div className="flex justify-end pt-4 border-t border-slate-800 mt-6">
+            <button
+              type="submit"
+              disabled={loading || isOvercapacity}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/10 text-xs transition-colors cursor-pointer flex items-center disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Allocating Stays...
+                </>
+              ) : (
+                'Confirm Arrival & Check-In'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default CheckIn;
