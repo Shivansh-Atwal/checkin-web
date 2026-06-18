@@ -152,18 +152,22 @@ const CheckOut: React.FC = () => {
           </div>
 
           <div className="space-y-3 max-w-sm mx-auto">
-            {checkoutResults.map((result: any, idx: number) => (
-              <a
-                key={idx}
-                href={`http://${window.location.hostname}:5000${result.invoiceUrl}`}
-                target="_blank"
-                rel="noreferrer"
+            {checkoutResults.map((result: any, idx: number) => {
+              const apiBase = api.defaults.baseURL || '';
+              const backendHost = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+              return (
+                <a
+                  key={idx}
+                  href={`${backendHost}${result.invoiceUrl}`}
+                  target="_blank"
+                  rel="noreferrer"
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/10 text-xs transition-colors flex items-center justify-center w-full"
               >
                 <FileText className="w-4.5 h-4.5 mr-2" />
                 Download Invoice (Room {result.roomNumber})
               </a>
-            ))}
+            );
+          })}
             <button
               onClick={() => navigate('/')}
               className="px-6 py-3 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold rounded-xl text-xs border border-slate-750 transition-colors cursor-pointer w-full mt-4"
