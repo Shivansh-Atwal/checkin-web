@@ -101,7 +101,7 @@ const PrivateLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen md:h-screen md:overflow-hidden bg-slate-950 text-slate-100">
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex w-64 bg-slate-900 border-r border-slate-800 flex-col justify-between shrink-0">
         <div>
@@ -156,7 +156,7 @@ const PrivateLayout: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 min-h-screen flex flex-col md:h-screen md:overflow-y-auto">
         <header className="h-16 border-b border-slate-800 flex items-center justify-between px-4 md:px-8 bg-slate-900/40 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center">
             {/* Hamburger button for mobile */}

@@ -158,10 +158,10 @@ const Rooms: React.FC = () => {
 
       {/* Editor Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closeModal} />
           
-          <div className="relative w-full max-w-md bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl p-6 z-10 animate-scale-in">
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl p-6 z-10 my-8 animate-scale-in">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4 mb-5">
               <h3 className="text-lg font-bold text-white">
                 {selectedRoom ? `Edit Room ${selectedRoom.roomNumber}` : 'Add New Room'}

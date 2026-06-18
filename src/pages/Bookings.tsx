@@ -406,7 +406,7 @@ const Bookings: React.FC = () => {
 
       {/* Reservation Form / Edit Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closeModal} />
 
           <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl p-6 z-10 my-8 animate-scale-in">

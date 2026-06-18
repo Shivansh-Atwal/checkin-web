@@ -240,10 +240,10 @@ const Employees: React.FC = () => {
 
       {/* Editor & Permission Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closeModal} />
 
-          <div className="relative w-full max-w-xl bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl p-6 z-10 animate-scale-in max-h-[90vh] flex flex-col justify-between">
+          <div className="relative w-full max-w-xl bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl p-6 z-10 my-8 animate-scale-in max-h-[90vh] flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-center border-b border-slate-800 pb-4 mb-4">
                 <h3 className="text-lg font-bold text-white">
@@ -382,10 +382,10 @@ const Employees: React.FC = () => {
 
       {/* Password Reset Modal */}
       {pwdModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setPwdModalOpen(false)} />
 
-          <div className="relative w-full max-w-md bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl p-6 z-10 animate-scale-in">
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl p-6 z-10 my-8 animate-scale-in">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4 mb-4">
               <h3 className="text-lg font-bold text-white flex items-center">
                 <Lock className="w-5 h-5 text-amber-500 mr-2" />
