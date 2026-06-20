@@ -300,6 +300,28 @@ const Dashboard: React.FC = () => {
                             </div>
                           </div>
                         </div>
+
+                        {roomDetailsRes.data.checkIns[0].otherCheckIns && roomDetailsRes.data.checkIns[0].otherCheckIns.length > 0 && (
+                          <div className="space-y-2.5 mt-4">
+                            <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Other Rooms Checked-In Simultaneously</h5>
+                            <div className="space-y-2">
+                              {roomDetailsRes.data.checkIns[0].otherCheckIns.map((other: any) => (
+                                <div key={other.id} className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-3 text-xs space-y-1.5">
+                                  <div className="flex justify-between items-center">
+                                    <span className="font-bold text-white font-mono">Room {other.room.roomNumber}</span>
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/20">Occupied</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-slate-400">
+                                    <div>Reg No: <span className="text-slate-200 font-mono">{other.registrationNumber}</span></div>
+                                    <div>Guests: <span className="text-slate-200">{other.numberOfGuests}</span></div>
+                                    <div>Rate: <span className="text-slate-200">₹{other.pricePerNight}/nt</span></div>
+                                    <div>Out: <span className="text-slate-200">{new Date(other.expectedCheckOutDate).toLocaleDateString()}</span></div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -355,6 +377,27 @@ const Dashboard: React.FC = () => {
                             </div>
                           </div>
                         </div>
+
+                        {roomDetailsRes.data.bookings[0].otherBookings && roomDetailsRes.data.bookings[0].otherBookings.length > 0 && (
+                          <div className="space-y-2.5 mt-4">
+                            <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Other Rooms Booked Simultaneously</h5>
+                            <div className="space-y-2">
+                              {roomDetailsRes.data.bookings[0].otherBookings.map((other: any) => (
+                                <div key={other.id} className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-3 text-xs space-y-1.5">
+                                  <div className="flex justify-between items-center">
+                                    <span className="font-bold text-white font-mono">Room {other.room.roomNumber}</span>
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-355 border border-amber-500/20">Booked</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-slate-400">
+                                    <div>Guests: <span className="text-slate-200">{other.numberOfGuests}</span></div>
+                                    <div>Rate: <span className="text-slate-200">₹{other.price}/nt</span></div>
+                                    <div className="col-span-2">Stay: <span className="text-slate-200">{new Date(other.checkInDate).toLocaleDateString()} to {new Date(other.checkOutDate).toLocaleDateString()}</span></div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 

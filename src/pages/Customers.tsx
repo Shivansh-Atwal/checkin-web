@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../utils/api';
-import { Search, X, Phone, Mail, MapPin } from 'lucide-react';
+import { Search, X, Phone, Mail, MapPin, Printer } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -28,6 +28,184 @@ interface Customer {
 const Customers: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+  const handlePrintDocuments = (customer: Customer) => {
+    const doc = customer.documents[0];
+    if (!doc) return;
+
+    const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    
+    const getFullUrl = (url?: string) => {
+      if (!url) return '';
+      return url.startsWith('/') ? `${backendUrl}${url}` : url;
+    };
+
+    const frontUrl = getFullUrl(doc.frontImageUrl);
+    const backUrl = getFullUrl(doc.backImageUrl);
+    const photoUrl = getFullUrl(doc.customerPhotoUrl);
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to print documents.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Customer Documents - ${customer.fullName}</title>
+          <style>
+            @page {
+              size: A4;
+              margin: 15mm;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              color: #1a202c;
+              margin: 0;
+              padding: 0;
+              background-color: #fff;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #2d3748;
+              padding-bottom: 12px;
+              margin-bottom: 24px;
+            }
+            .header h1 {
+              font-size: 22px;
+              margin: 0 0 6px 0;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              color: #1a202c;
+            }
+            .header p {
+              font-size: 13px;
+              margin: 3px 0;
+              color: #4a5568;
+            }
+            .container {
+              display: flex;
+              flex-direction: column;
+              gap: 24px;
+            }
+            .section-title {
+              font-size: 12px;
+              font-weight: bold;
+              text-transform: uppercase;
+              color: #4a5568;
+              margin-bottom: 8px;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 4px;
+              width: 100%;
+            }
+            .photo-section {
+              display: flex;
+              justify-content: center;
+              margin-bottom: 10px;
+            }
+            .photo-card {
+              border: 1px solid #cbd5e0;
+              border-radius: 6px;
+              padding: 12px;
+              background-color: #f7fafc;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              width: 200px;
+            }
+            .passport-image {
+              height: 180px;
+              width: 140px;
+              object-fit: cover;
+              border-radius: 4px;
+              border: 1px solid #e2e8f0;
+            }
+            .ids-section {
+              display: flex;
+              gap: 20px;
+            }
+            .id-card {
+              flex: 1;
+              border: 1px solid #cbd5e0;
+              border-radius: 6px;
+              padding: 12px;
+              background-color: #f7fafc;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              box-sizing: border-box;
+            }
+            .doc-image {
+              max-width: 100%;
+              max-height: 240px;
+              object-fit: contain;
+              border-radius: 4px;
+              border: 1px solid #e2e8f0;
+              background-color: #fff;
+            }
+            .no-image {
+              font-size: 12px;
+              color: #a0aec0;
+              padding: 40px 0;
+              font-style: italic;
+            }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              font-size: 10px;
+              color: #a0aec0;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 8px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Customer Identity Documents</h1>
+            <p><strong>Guest Name:</strong> ${customer.fullName} &nbsp;|&nbsp; <strong>Mobile:</strong> ${customer.mobileNumber}</p>
+            <p><strong>Document Type:</strong> ${doc.idType} &nbsp;|&nbsp; <strong>Document Number:</strong> ${doc.idNumber}</p>
+          </div>
+          
+          <div class="container">
+            <!-- Passport Photo -->
+            <div class="photo-section">
+              <div class="photo-card">
+                <div class="section-title">Passport Size Photo</div>
+                ${photoUrl ? `<img class="passport-image" src="${photoUrl}" alt="Customer Photo" />` : '<div class="no-image">No Photo Uploaded</div>'}
+              </div>
+            </div>
+
+            <!-- Front & Back IDs -->
+            <div class="ids-section">
+              <div class="id-card">
+                <div class="section-title">ID Card Front</div>
+                ${frontUrl ? `<img class="doc-image" src="${frontUrl}" alt="ID Front" />` : '<div class="no-image">No Front Image Uploaded</div>'}
+              </div>
+              <div class="id-card">
+                <div class="section-title">ID Card Back</div>
+                ${backUrl ? `<img class="doc-image" src="${backUrl}" alt="ID Back" />` : '<div class="no-image">No Back Image Uploaded</div>'}
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            Generated by HotelFlow Management System on ${new Date().toLocaleString()}
+          </div>
+
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   // Fetch Customers
   const { data: customersRes, isLoading } = useQuery({
@@ -97,8 +275,22 @@ const Customers: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="px-2.5 py-1 bg-slate-800 text-slate-300 text-[10px] uppercase font-bold rounded-lg border border-slate-750">
-                View History
+              <div className="flex flex-col gap-2 items-end shrink-0">
+                <div className="px-2.5 py-1 bg-slate-800 hover:bg-slate-750 text-slate-350 text-[10px] uppercase font-bold rounded-lg border border-slate-750 transition-colors">
+                  View History
+                </div>
+                {c.documents?.[0] && (c.documents[0].frontImageUrl || c.documents[0].backImageUrl || c.documents[0].customerPhotoUrl) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrintDocuments(c);
+                    }}
+                    className="p-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 rounded-lg border border-blue-500/20 transition-colors cursor-pointer flex items-center justify-center"
+                    title="Print Documents"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -172,7 +364,18 @@ const Customers: React.FC = () => {
                 {/* Identity verification documents */}
                 {selectedCustomer.documents?.[0] && (
                   <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-slate-450 tracking-wider uppercase">Identity Verification</h4>
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-xs font-semibold text-slate-450 tracking-wider uppercase">Identity Verification</h4>
+                      {(selectedCustomer.documents[0].frontImageUrl || selectedCustomer.documents[0].backImageUrl || selectedCustomer.documents[0].customerPhotoUrl) && (
+                        <button
+                          onClick={() => handlePrintDocuments(selectedCustomer)}
+                          className="flex items-center gap-1 px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] uppercase font-bold rounded-lg border border-blue-500/25 transition-colors cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          Print A4 ID
+                        </button>
+                      )}
+                    </div>
                     <div className="bg-slate-950/20 border border-slate-850 p-4 rounded-xl space-y-3 text-sm">
                       <div className="flex justify-between">
                         <div>

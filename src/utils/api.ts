@@ -8,10 +8,65 @@ const api = axios.create({
   },
 });
 
-// Automatically inject Authorization headers
+let refreshPromise: Promise<string> | null = null;
+
+// Automatically inject Authorization headers and perform proactive silent refreshes
 api.interceptors.request.use(
-  (config) => {
-    const token = useAuthStore.getState().token;
+  async (config) => {
+    const tenantId = localStorage.getItem('tenantId') || 'public';
+    if (config.headers) {
+      config.headers['X-Tenant-Id'] = tenantId;
+    }
+
+    let token = useAuthStore.getState().token;
+    const refreshToken = useAuthStore.getState().refreshToken;
+
+    if (token) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          window.atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        
+        // Proactively refresh if access token expires within 30 seconds
+        if (payload.exp && payload.exp * 1000 < Date.now() + 30 * 1000) {
+          if (refreshToken) {
+            if (!refreshPromise) {
+              refreshPromise = (async () => {
+                try {
+                  const refreshUrl = `${import.meta.env.VITE_API_URL || 'https://checkin-backend-70km.onrender.com/api'}/auth/refresh`;
+                  const res = await axios.post(refreshUrl, { refreshToken });
+                  if (res.data && res.data.success) {
+                    const newAccessToken = res.data.data.accessToken;
+                    const user = useAuthStore.getState().user;
+                    if (user) {
+                      useAuthStore.getState().login(user, newAccessToken, refreshToken);
+                    }
+                    return newAccessToken;
+                  }
+                  throw new Error('Proactive refresh failed');
+                } catch (err) {
+                  useAuthStore.getState().logout();
+                  window.location.href = '/login';
+                  throw err;
+                } finally {
+                  refreshPromise = null;
+                }
+              })();
+            }
+            token = await refreshPromise;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse or proactively refresh token:', e);
+      }
+    }
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -20,15 +75,81 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Catch 401 Session expirations
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Catch 401 Session expirations and refresh tokens silently (Reactive Fallback)
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response && error.response.status === 401) {
-      // Clear store session and bounce user back to login page
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
+    const originalRequest = error.config;
+
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            if (!originalRequest.headers) {
+              originalRequest.headers = {};
+            }
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            originalRequest._retry = true;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = useAuthStore.getState().refreshToken;
+      if (refreshToken) {
+        try {
+          const refreshUrl = `${import.meta.env.VITE_API_URL || 'https://checkin-backend-70km.onrender.com/api'}/auth/refresh`;
+          const res = await axios.post(refreshUrl, { refreshToken });
+
+          if (res.data && res.data.success) {
+            const newAccessToken = res.data.data.accessToken;
+            const user = useAuthStore.getState().user;
+            
+            if (user) {
+              useAuthStore.getState().login(user, newAccessToken, refreshToken);
+            }
+
+            processQueue(null, newAccessToken);
+            isRefreshing = false;
+
+            if (!originalRequest.headers) {
+              originalRequest.headers = {};
+            }
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return api(originalRequest);
+          }
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          isRefreshing = false;
+          useAuthStore.getState().logout();
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
+        }
+      } else {
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+      }
     }
+
     return Promise.reject(error);
   }
 );

@@ -36,8 +36,37 @@ const CheckIn: React.FC = () => {
   const [pincode, setPincode] = useState('');
   const [registrationNumber, setRegistrationNumber] = useState('');
 
+  // Image Upload states
+  const [frontImageLoading, setFrontImageLoading] = useState(false);
+  const [frontImageUrl, setFrontImageUrl] = useState('');
+  const [backImageLoading, setBackImageLoading] = useState(false);
+  const [backImageUrl, setBackImageUrl] = useState('');
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleFileUpload = async (
+    file: File,
+    type: 'documents' | 'customers',
+    setUrl: (url: string) => void,
+    setLoading: (load: boolean) => void
+  ) => {
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('document', file);
+    try {
+      const res = await api.post(`/customers/upload?type=${type}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setUrl(res.data.data.fileUrl);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'File upload failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Pre-fill triggers
   useEffect(() => {
@@ -147,6 +176,9 @@ const CheckIn: React.FC = () => {
       payload.document = {
         idType,
         idNumber,
+        frontImageUrl: frontImageUrl || undefined,
+        backImageUrl: backImageUrl || undefined,
+        customerPhotoUrl: photoUrl || undefined,
       };
     }
 
@@ -292,6 +324,125 @@ const CheckIn: React.FC = () => {
                     placeholder="Document reference number"
                     className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
                   />
+                </div>
+              </div>
+
+              {/* Government ID Image Uploads */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">ID Front Image</label>
+                  <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-4 hover:border-slate-700 transition-colors">
+                    {frontImageUrl ? (
+                      <div className="w-full space-y-2 text-center">
+                        <img
+                          src={frontImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${frontImageUrl}` : frontImageUrl}
+                          alt="ID Front"
+                          className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFrontImageUrl('')}
+                          className="text-xs text-rose-400 hover:text-rose-350 transition-colors font-medium"
+                        >
+                          Remove Image
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="w-full cursor-pointer text-center py-4">
+                        <span className="text-xs text-slate-400 block font-medium">
+                          {frontImageLoading ? 'Uploading Front Image...' : 'Click to Upload Front'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleFileUpload(e.target.files[0], 'documents', setFrontImageUrl, setFrontImageLoading);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">ID Back Image</label>
+                  <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-4 hover:border-slate-700 transition-colors">
+                    {backImageUrl ? (
+                      <div className="w-full space-y-2 text-center">
+                        <img
+                          src={backImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${backImageUrl}` : backImageUrl}
+                          alt="ID Back"
+                          className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setBackImageUrl('')}
+                          className="text-xs text-rose-400 hover:text-rose-350 transition-colors font-medium"
+                        >
+                          Remove Image
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="w-full cursor-pointer text-center py-4">
+                        <span className="text-xs text-slate-400 block font-medium">
+                          {backImageLoading ? 'Uploading Back Image...' : 'Click to Upload Back'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleFileUpload(e.target.files[0], 'documents', setBackImageUrl, setBackImageLoading);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Passport Photo Upload */}
+              <div className="grid grid-cols-1 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Customer Photo (Passport Size)</label>
+                  <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-4 hover:border-slate-700 transition-colors">
+                    {photoUrl ? (
+                      <div className="w-full space-y-2 text-center">
+                        <img
+                          src={photoUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${photoUrl}` : photoUrl}
+                          alt="Customer Photo"
+                          className="h-28 w-28 mx-auto rounded-full object-cover border border-slate-800"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPhotoUrl('')}
+                          className="text-xs text-rose-400 hover:text-rose-350 transition-colors font-medium block mx-auto"
+                        >
+                          Remove Photo
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="w-full cursor-pointer text-center py-4">
+                        <span className="text-xs text-slate-400 block font-medium">
+                          {photoLoading ? 'Uploading Photo...' : 'Click to Upload Passport Photo'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleFileUpload(e.target.files[0], 'customers', setPhotoUrl, setPhotoLoading);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
               </div>
             </>

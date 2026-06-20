@@ -321,7 +321,6 @@ const Employees: React.FC = () => {
                           return (
                             <label
                               key={p.id}
-                              onClick={() => handleTogglePermission(p.id)}
                               className={`p-3 border rounded-xl flex items-start text-xs cursor-pointer select-none transition-colors ${
                                 isChecked
                                   ? 'bg-blue-600/15 border-blue-500/50 text-blue-300'
@@ -331,8 +330,8 @@ const Employees: React.FC = () => {
                               <input
                                 type="checkbox"
                                 checked={isChecked}
-                                onChange={() => {}} // Controlled by label click
-                                className="mt-0.5 mr-2.5 accent-blue-500 pointer-events-none"
+                                onChange={() => handleTogglePermission(p.id)}
+                                className="mt-0.5 mr-2.5 accent-blue-500"
                               />
                               <div>
                                 <p className="font-semibold text-slate-200 font-mono text-[11px]">{p.name}</p>
