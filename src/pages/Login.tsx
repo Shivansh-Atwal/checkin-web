@@ -5,7 +5,10 @@ import { KeyRound, Mail, Loader2, Building, User } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [tenantId, setTenantId] = useState('');
+  const [tenantId, setTenantId] = useState(() => {
+    const stored = localStorage.getItem('tenantId');
+    return stored && stored !== 'public' ? stored : '';
+  });
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +35,10 @@ const Login: React.FC = () => {
       }
       try {
         const response = await api.post('/auth/login', { email, password });
-        const { accessToken, refreshToken, user } = response.data.data;
+        const { accessToken, refreshToken, user, tenantId: returnedTenantId } = response.data.data;
+        if (returnedTenantId) {
+          localStorage.setItem('tenantId', returnedTenantId);
+        }
         login(user, accessToken, refreshToken);
       } catch (err: any) {
         console.error(err);
