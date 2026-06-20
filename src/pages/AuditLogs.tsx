@@ -30,48 +30,93 @@ const AuditLogs: React.FC = () => {
       {isLoading ? (
         <div className="text-center py-20 text-slate-500 text-sm">Fetching system audit records...</div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto shadow-xl">
-          <div className="min-w-[768px]">
-            <div className="p-5 border-b border-slate-800 bg-slate-850/45 flex items-center justify-between text-xs font-bold text-slate-400">
-              <span>Action Description</span>
-              <div className="flex space-x-12">
-                <span className="w-24 text-left">Triggered By</span>
-                <span className="w-28 text-left">IP Address</span>
-                <span className="w-36 text-right">Timestamp</span>
+        <div className="space-y-4">
+          {/* Desktop List View */}
+          <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto shadow-xl">
+            <div className="min-w-[768px]">
+              <div className="p-5 border-b border-slate-800 bg-slate-850/45 flex items-center justify-between text-xs font-bold text-slate-400">
+                <span>Action Description</span>
+                <div className="flex space-x-12">
+                  <span className="w-24 text-left">Triggered By</span>
+                  <span className="w-28 text-left">IP Address</span>
+                  <span className="w-36 text-right">Timestamp</span>
+                </div>
+              </div>
+              
+              <div className="divide-y divide-slate-800">
+                {logs.length === 0 ? (
+                  <div className="text-center py-20 text-slate-550 text-sm">No action logs found in database.</div>
+                ) : (
+                  logs.map((log) => (
+                    <div key={log.id} className="p-4 hover:bg-slate-850/30 transition-colors flex justify-between items-center text-sm">
+                      <div className="flex items-center space-x-3 max-w-md">
+                        <div className="p-2 bg-slate-800 text-slate-400 rounded-lg shrink-0">
+                          <Terminal className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-200 leading-tight">{log.action}</p>
+                          {log.details && (
+                            <p className="text-[11px] text-slate-500 font-mono mt-1 leading-normal truncate max-w-sm" title={log.details}>
+                              {log.details}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex space-x-12 text-xs text-slate-400 items-center shrink-0">
+                        <span className="w-24 truncate font-medium text-slate-350">{log.userName}</span>
+                        <span className="w-28 font-mono text-[11px] text-slate-455">{log.ipAddress || 'localhost'}</span>
+                        <span className="w-36 text-right text-slate-500">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
-            
-            <div className="divide-y divide-slate-800">
-              {logs.length === 0 ? (
-                <div className="text-center py-20 text-slate-550 text-sm">No action logs found in database.</div>
-              ) : (
-                logs.map((log) => (
-                  <div key={log.id} className="p-4 hover:bg-slate-850/30 transition-colors flex justify-between items-center text-sm">
-                    <div className="flex items-center space-x-3 max-w-md">
-                      <div className="p-2 bg-slate-800 text-slate-400 rounded-lg shrink-0">
-                        <Terminal className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-200 leading-tight">{log.action}</p>
-                        {log.details && (
-                          <p className="text-[11px] text-slate-500 font-mono mt-1 leading-normal truncate max-w-sm" title={log.details}>
-                            {log.details}
-                          </p>
-                        )}
-                      </div>
-                    </div>
+          </div>
 
-                    <div className="flex space-x-12 text-xs text-slate-400 items-center shrink-0">
-                      <span className="w-24 truncate font-medium text-slate-350">{log.userName}</span>
-                      <span className="w-28 font-mono text-[11px] text-slate-455">{log.ipAddress || 'localhost'}</span>
-                      <span className="w-36 text-right text-slate-500">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </span>
+          {/* Mobile Cards View */}
+          <div className="md:hidden space-y-4">
+            {logs.length === 0 ? (
+              <div className="text-center py-12 text-slate-500 bg-slate-900 border border-slate-800 rounded-2xl text-sm">
+                No action logs found in database.
+              </div>
+            ) : (
+              logs.map((log) => (
+                <div key={log.id} className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-md">
+                  <div className="flex items-start space-x-3">
+                    <div className="p-2 bg-slate-850 text-slate-400 rounded-lg shrink-0 mt-0.5 border border-slate-800">
+                      <Terminal className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <p className="font-bold text-slate-200 text-xs leading-snug">{log.action}</p>
+                      {log.details && (
+                        <p className="text-[10px] text-slate-450 font-mono mt-1 leading-normal break-all">
+                          {log.details}
+                        </p>
+                      )}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-[11px] border-t border-slate-800/80 pt-2.5 text-slate-400">
+                    <div>
+                      <span className="block text-[9px] uppercase text-slate-550 font-bold">Triggered By</span>
+                      <span className="font-semibold text-slate-300">{log.userName}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[9px] uppercase text-slate-550 font-bold">IP Address</span>
+                      <span className="font-mono text-slate-350">{log.ipAddress || 'localhost'}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-[10px] text-slate-505 text-right border-t border-slate-800/40 pt-1.5 font-medium">
+                    {new Date(log.timestamp).toLocaleString()}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

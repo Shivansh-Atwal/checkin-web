@@ -112,14 +112,15 @@ const Customers: React.FC = () => {
               display: flex;
               flex-direction: column;
               align-items: center;
-              width: 200px;
+              width: 180px;
+              page-break-inside: avoid;
             }
             .passport-image {
-              height: 180px;
-              width: 140px;
+              height: 165px;
+              width: 130px;
               object-fit: cover;
               border-radius: 4px;
-              border: 1px solid #e2e8f0;
+              border: 1px solid #cbd5e0;
             }
             .ids-section {
               display: flex;
@@ -129,19 +130,20 @@ const Customers: React.FC = () => {
               flex: 1;
               border: 1px solid #cbd5e0;
               border-radius: 6px;
-              padding: 12px;
+              padding: 16px;
               background-color: #f7fafc;
               display: flex;
               flex-direction: column;
               align-items: center;
               box-sizing: border-box;
+              page-break-inside: avoid;
             }
             .doc-image {
               max-width: 100%;
-              max-height: 240px;
+              max-height: 280px;
               object-fit: contain;
               border-radius: 4px;
-              border: 1px solid #e2e8f0;
+              border: 1px solid #cbd5e0;
               background-color: #fff;
             }
             .no-image {

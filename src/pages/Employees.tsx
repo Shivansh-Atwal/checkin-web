@@ -163,36 +163,105 @@ const Employees: React.FC = () => {
       {isLoading ? (
         <div className="text-center py-20 text-slate-500 text-sm">Loading accounts list...</div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto shadow-xl">
-          <table className="w-full min-w-[800px] border-collapse text-left">
-            <thead>
-              <tr className="border-b border-slate-800 bg-slate-850 text-slate-300 text-xs uppercase tracking-wider font-semibold">
-                <th className="p-4">Staff Member</th>
-                <th className="p-4">Role</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Overridden Permissions Count</th>
-                <th className="p-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800 text-sm text-slate-200">
-              {employees.map((emp) => (
-                <tr key={emp.id} className="hover:bg-slate-850/50 transition-colors">
-                  <td className="p-4">
-                    <p className="font-semibold text-white">{emp.fullName}</p>
+        <div className="space-y-4">
+          {/* Desktop Table View */}
+          <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto shadow-xl">
+            <table className="w-full min-w-[800px] border-collapse text-left">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-850 text-slate-300 text-xs uppercase tracking-wider font-semibold">
+                  <th className="p-4">Staff Member</th>
+                  <th className="p-4">Role</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Overridden Permissions Count</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 text-sm text-slate-205">
+                {employees.map((emp) => (
+                  <tr key={emp.id} className="hover:bg-slate-850/50 transition-colors">
+                    <td className="p-4">
+                      <p className="font-semibold text-white">{emp.fullName}</p>
+                      <p className="text-xs text-slate-450">{emp.email}</p>
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                        emp.role === 'ADMIN' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-350'
+                      }`}>
+                        {emp.role}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <button
+                        onClick={() => toggleDisableMutation.mutate({ id: emp.id, isDisabled: !emp.isDisabled })}
+                        disabled={emp.role === 'ADMIN'}
+                        className={`px-2 py-0.5 rounded text-xs font-semibold cursor-pointer disabled:cursor-not-allowed ${
+                          emp.isDisabled
+                            ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
+                            : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                        }`}
+                      >
+                        {emp.isDisabled ? 'Disabled' : 'Active'}
+                      </button>
+                    </td>
+                    <td className="p-4 font-mono text-slate-350">
+                      {emp.role === 'ADMIN'
+                        ? 'All (Super)'
+                        : emp.hasCustomPermissions
+                        ? `${emp.permissions.length} Custom`
+                        : 'Role Default'}
+                    </td>
+                    <td className="p-4 text-right space-x-2">
+                      {emp.role !== 'ADMIN' && (
+                        <>
+                          <button
+                            onClick={() => openModal(emp)}
+                            className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer inline-flex"
+                            title="Assign Permissions"
+                          >
+                            <Shield className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedEmp(emp);
+                              setPwdModalOpen(true);
+                            }}
+                            className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer inline-flex"
+                            title="Reset Password"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="md:hidden space-y-4">
+            {employees.map((emp) => (
+              <div key={emp.id} className="bg-slate-950/30 border border-slate-800 p-4 rounded-xl space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-bold text-white text-sm">{emp.fullName}</p>
                     <p className="text-xs text-slate-450">{emp.email}</p>
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                      emp.role === 'ADMIN' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-350'
-                    }`}>
-                      {emp.role}
-                    </span>
-                  </td>
-                  <td className="p-4">
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                    emp.role === 'ADMIN' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-350'
+                  }`}>
+                    {emp.role}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs border-t border-slate-800/80 pt-2.5">
+                  <div>
+                    <span className="block text-[10px] uppercase text-slate-500 tracking-wider">Account Status</span>
                     <button
                       onClick={() => toggleDisableMutation.mutate({ id: emp.id, isDisabled: !emp.isDisabled })}
                       disabled={emp.role === 'ADMIN'}
-                      className={`px-2 py-0.5 rounded text-xs font-semibold cursor-pointer disabled:cursor-not-allowed ${
+                      className={`mt-1.5 px-2.5 py-0.5 rounded text-xs font-semibold cursor-pointer disabled:cursor-not-allowed ${
                         emp.isDisabled
                           ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
                           : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
@@ -200,41 +269,45 @@ const Employees: React.FC = () => {
                     >
                       {emp.isDisabled ? 'Disabled' : 'Active'}
                     </button>
-                  </td>
-                  <td className="p-4 font-mono text-slate-300">
-                    {emp.role === 'ADMIN'
-                      ? 'All (Super)'
-                      : emp.hasCustomPermissions
-                      ? `${emp.permissions.length} Custom`
-                      : 'Role Default'}
-                  </td>
-                  <td className="p-4 text-right space-x-2">
-                    {emp.role !== 'ADMIN' && (
-                      <>
-                        <button
-                          onClick={() => openModal(emp)}
-                          className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer inline-flex"
-                          title="Assign Permissions"
-                        >
-                          <Shield className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedEmp(emp);
-                            setPwdModalOpen(true);
-                          }}
-                          className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer inline-flex"
-                          title="Reset Password"
-                        >
-                          <KeyRound className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] uppercase text-slate-500 tracking-wider">Custom Override</span>
+                    <span className="block mt-2 font-mono text-slate-300">
+                      {emp.role === 'ADMIN'
+                        ? 'All (Super)'
+                        : emp.hasCustomPermissions
+                        ? `${emp.permissions.length} Custom`
+                        : 'Role Default'}
+                    </span>
+                  </div>
+                </div>
+
+                {emp.role !== 'ADMIN' && (
+                  <div className="flex justify-end border-t border-slate-800/80 pt-2.5 space-x-2">
+                    <button
+                      onClick={() => openModal(emp)}
+                      className="flex items-center px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                      title="Assign Permissions"
+                    >
+                      <Shield className="w-3.5 h-3.5 mr-1.5" />
+                      Permissions
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedEmp(emp);
+                        setPwdModalOpen(true);
+                      }}
+                      className="flex items-center px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                      title="Reset Password"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 mr-1.5" />
+                      Password
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

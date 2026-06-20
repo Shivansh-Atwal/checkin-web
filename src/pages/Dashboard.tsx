@@ -156,12 +156,12 @@ const Dashboard: React.FC = () => {
       {roomsLoading ? (
         <div className="text-center py-20 text-slate-500">Loading rooms inventory...</div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
           {rooms.map((room) => (
             <div
               key={room.id}
               onClick={() => setSelectedRoom(room)}
-              className={`border p-5 rounded-2xl cursor-pointer transition-all duration-200 flex flex-col justify-between h-36 select-none ${getStatusColor(
+              className={`border p-3.5 sm:p-5 rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-200 flex flex-col justify-between h-32 sm:h-36 select-none ${getStatusColor(
                 room.status
               )}`}
             >

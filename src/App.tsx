@@ -176,7 +176,7 @@ const PrivateLayout: React.FC = () => {
             <span className="sm:hidden">Live</span>
           </div>
         </header>
-        <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/rooms" element={<Rooms />} />

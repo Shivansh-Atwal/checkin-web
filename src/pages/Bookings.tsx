@@ -268,58 +268,129 @@ const Bookings: React.FC = () => {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-slate-800 bg-slate-850/50 text-slate-450 text-[10px] uppercase tracking-wider font-bold">
-              <th className="p-4">Ref Number</th>
-              <th className="p-4">Guest Info</th>
-              <th className="p-4">Room Allocation</th>
-              <th className="p-4">Stay Dates</th>
-              <th className="p-4">Advance Paid</th>
-              <th className="p-4">Status</th>
-              <th className="p-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800 text-xs text-slate-250">
-            {list.map((booking) => (
-              <tr key={booking.id} className="hover:bg-slate-850/20 transition-colors">
-                <td className="p-4 font-mono font-semibold text-blue-400">
-                  <div>{booking.bookingNumber}</div>
-                  {booking.registrationNumber && (
-                    <div className="text-[10px] text-emerald-400 font-bold mt-0.5">
-                      Reg: {booking.registrationNumber}
-                    </div>
-                  )}
-                </td>
-                <td className="p-4">
-                  <p className="font-semibold text-white">{booking.customer.fullName}</p>
-                  <p className="text-[11px] text-slate-450 flex items-center mt-0.5">
-                    <Phone className="w-3 h-3 mr-1 text-slate-500" />
-                    {booking.customer.mobileNumber}
-                  </p>
-                  {booking.customer.city && (
-                    <p className="text-[10px] text-slate-500 flex items-center mt-1">
-                      <MapPin className="w-2.5 h-2.5 mr-0.5" />
-                      {booking.customer.city}, {booking.customer.state}
+      <div className="space-y-4">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-slate-800 bg-slate-850/50 text-slate-450 text-[10px] uppercase tracking-wider font-bold">
+                <th className="p-4">Ref Number</th>
+                <th className="p-4">Guest Info</th>
+                <th className="p-4">Room Allocation</th>
+                <th className="p-4">Stay Dates</th>
+                <th className="p-4">Advance Paid</th>
+                <th className="p-4">Status</th>
+                <th className="p-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800 text-xs text-slate-250">
+              {list.map((booking) => (
+                <tr key={booking.id} className="hover:bg-slate-850/20 transition-colors">
+                  <td className="p-4 font-mono font-semibold text-blue-400">
+                    <div>{booking.bookingNumber}</div>
+                    {booking.registrationNumber && (
+                      <div className="text-[10px] text-emerald-400 font-bold mt-0.5">
+                        Reg: {booking.registrationNumber}
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-4">
+                    <p className="font-semibold text-white">{booking.customer.fullName}</p>
+                    <p className="text-[11px] text-slate-450 flex items-center mt-0.5">
+                      <Phone className="w-3 h-3 mr-1 text-slate-500" />
+                      {booking.customer.mobileNumber}
                     </p>
-                  )}
-                </td>
-                <td className="p-4">
-                  <p className="font-mono font-bold text-white">Room {booking.room?.roomNumber}</p>
-                  <p className="text-[10px] text-slate-500 font-mono capitalize">{booking.room?.roomType}</p>
-                </td>
-                <td className="p-4 space-y-0.5">
-                  <p><span className="text-slate-500 font-medium">Arrival:</span> {new Date(booking.checkInDate).toLocaleDateString()}</p>
-                  <p><span className="text-slate-500 font-medium">Departure:</span> {new Date(booking.checkOutDate).toLocaleDateString()}</p>
-                </td>
-                <td className="p-4 font-semibold text-emerald-400">₹{booking.advancePayment}</td>
-                <td className="p-4">{getStatusBadge(booking.status)}</td>
-                <td className="p-4 text-right space-x-2">
+                    {booking.customer.city && (
+                      <p className="text-[10px] text-slate-500 flex items-center mt-1">
+                        <MapPin className="w-2.5 h-2.5 mr-0.5" />
+                        {booking.customer.city}, {booking.customer.state}
+                      </p>
+                    )}
+                  </td>
+                  <td className="p-4">
+                    <p className="font-mono font-bold text-white">Room {booking.room?.roomNumber}</p>
+                    <p className="text-[10px] text-slate-500 font-mono capitalize">{booking.room?.roomType}</p>
+                  </td>
+                  <td className="p-4 space-y-0.5">
+                    <p><span className="text-slate-500 font-medium">Arrival:</span> {new Date(booking.checkInDate).toLocaleDateString()}</p>
+                    <p><span className="text-slate-500 font-medium">Departure:</span> {new Date(booking.checkOutDate).toLocaleDateString()}</p>
+                  </td>
+                  <td className="p-4 font-semibold text-emerald-400">₹{booking.advancePayment}</td>
+                  <td className="p-4">{getStatusBadge(booking.status)}</td>
+                  <td className="p-4 text-right space-x-2">
+                    {hasPermission('bookings.update') && (
+                      <button
+                        onClick={() => openEditModal(booking)}
+                        className="p-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer inline-flex"
+                        title="Edit Details"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {showCancelAction && booking.status === 'CONFIRMED' && hasPermission('bookings.cancel') && (
+                      <button
+                        onClick={() => handleCancel(booking.id)}
+                        className="p-1.5 bg-rose-950/20 hover:bg-rose-950/50 text-rose-400 hover:text-rose-200 rounded-lg transition-colors cursor-pointer inline-flex"
+                        title="Cancel Booking"
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="md:hidden space-y-4">
+          {list.map((booking) => (
+            <div key={booking.id} className="bg-slate-950/30 border border-slate-800 p-4 rounded-xl space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="font-mono font-bold text-blue-400 text-xs">
+                  {booking.bookingNumber}
+                </span>
+                {getStatusBadge(booking.status)}
+              </div>
+              
+              <div>
+                <p className="font-bold text-white text-sm">{booking.customer.fullName}</p>
+                <p className="text-xs text-slate-400 flex items-center mt-1">
+                  <Phone className="w-3 h-3 mr-1.5 text-slate-500" />
+                  {booking.customer.mobileNumber}
+                </p>
+                {booking.customer.city && (
+                  <p className="text-[10px] text-slate-450 flex items-center mt-0.5">
+                    <MapPin className="w-2.5 h-2.5 mr-1 text-slate-500" />
+                    {booking.customer.city}, {booking.customer.state}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs border-t border-slate-800/80 pt-2.5">
+                <div>
+                  <span className="block text-[10px] uppercase text-slate-500 tracking-wider">Room Assigned</span>
+                  <span className="font-mono font-bold text-white">Room {booking.room?.roomNumber}</span>
+                  <span className="block text-[10px] text-slate-500">({booking.room?.roomType})</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase text-slate-500 tracking-wider">Advance Paid</span>
+                  <span className="font-bold text-emerald-400">₹{booking.advancePayment}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-end border-t border-slate-800/80 pt-2.5">
+                <div className="text-[10px] space-y-0.5 text-slate-450">
+                  <p><span className="text-slate-500">Check-in:</span> {new Date(booking.checkInDate).toLocaleDateString()}</p>
+                  <p><span className="text-slate-500">Check-out:</span> {new Date(booking.checkOutDate).toLocaleDateString()}</p>
+                </div>
+                
+                <div className="flex space-x-1.5">
                   {hasPermission('bookings.update') && (
                     <button
                       onClick={() => openEditModal(booking)}
-                      className="p-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer inline-flex"
+                      className="p-1.5 bg-slate-800 hover:bg-slate-750 text-slate-350 hover:text-white rounded-lg transition-colors cursor-pointer"
                       title="Edit Details"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -328,17 +399,17 @@ const Bookings: React.FC = () => {
                   {showCancelAction && booking.status === 'CONFIRMED' && hasPermission('bookings.cancel') && (
                     <button
                       onClick={() => handleCancel(booking.id)}
-                      className="p-1.5 bg-rose-950/20 hover:bg-rose-950/50 text-rose-400 hover:text-rose-200 rounded-lg transition-colors cursor-pointer inline-flex"
+                      className="p-1.5 bg-rose-950/20 hover:bg-rose-950/55 text-rose-450 hover:text-rose-250 rounded-lg transition-colors cursor-pointer"
                       title="Cancel Booking"
                     >
                       <Ban className="w-3.5 h-3.5" />
                     </button>
                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
