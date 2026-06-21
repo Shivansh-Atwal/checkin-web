@@ -16,7 +16,7 @@ interface StayRecord {
   state: string;
   nationality: string;
   roomNumber: string;
-  pricePaid: number;
+  roomPrice: number;
   numberOfGuests: number;
   bednights: number;
 }
@@ -81,7 +81,7 @@ const Records: React.FC = () => {
     if (!filteredRecords.length) return;
 
     let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'Check-In Date,Check-Out Date,Guest Name,Mobile Number,Complete Address,ID Card Type,ID Card Number,State,Nationality,Room Number,Price Paid,No of Members,Bednights Spent,Status\n';
+    csvContent += 'Check-In Date,Check-Out Date,Guest Name,Mobile Number,Complete Address,ID Card Type,ID Card Number,State,Nationality,Room Number,Room Price,No of Members,Bednights Spent,Status\n';
     
     filteredRecords.forEach((ci) => {
       const formattedCheckInDate = new Date(ci.checkInTime).toLocaleDateString();
@@ -90,7 +90,7 @@ const Records: React.FC = () => {
         : '';
       const escapedAddress = `"${ci.completeAddress.replace(/"/g, '""')}"`;
       const escapedName = `"${ci.customerName.replace(/"/g, '""')}"`;
-      csvContent += `${formattedCheckInDate},${formattedCheckOutDate},${escapedName},${ci.mobileNumber},${escapedAddress},${ci.idCardType},${ci.idCardNumber},${ci.state},${ci.nationality},${ci.roomNumber},${ci.pricePaid},${ci.numberOfGuests},${ci.bednights},${ci.status}\n`;
+      csvContent += `${formattedCheckInDate},${formattedCheckOutDate},${escapedName},${ci.mobileNumber},${escapedAddress},${ci.idCardType},${ci.idCardNumber},${ci.state},${ci.nationality},${ci.roomNumber},${ci.roomPrice},${ci.numberOfGuests},${ci.bednights},${ci.status}\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
@@ -276,10 +276,10 @@ const Records: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Bottom Total Paid */}
+                  {/* Bottom Room Price */}
                   <div className="flex justify-between items-center border-t border-slate-850 pt-3.5 mt-2">
-                    <span className="text-xs font-bold text-slate-400">Total Price Paid</span>
-                    <span className="text-lg font-black text-emerald-400 font-mono">₹{ci.pricePaid}</span>
+                    <span className="text-xs font-bold text-slate-400">Room Price</span>
+                    <span className="text-lg font-black text-emerald-400 font-mono">₹{ci.roomPrice}</span>
                   </div>
                 </div>
               ))
