@@ -10,6 +10,65 @@ interface Room {
   roomType: string;
 }
 
+const compressImage = (file: File, quality = 0.7, maxWidth = 1024, maxHeight = 1024): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      return resolve(file);
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return resolve(file);
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              return resolve(file);
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
 const CheckIn: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -54,9 +113,18 @@ const CheckIn: React.FC = () => {
     setLoading: (load: boolean) => void
   ) => {
     setLoading(true);
-    const formData = new FormData();
-    formData.append('document', file);
     try {
+      let fileToUpload = file;
+      if (file.type.startsWith('image/')) {
+        try {
+          fileToUpload = await compressImage(file, 0.7, 1024, 1024);
+        } catch (compressErr) {
+          console.error("Compression failed, uploading original image", compressErr);
+        }
+      }
+
+      const formData = new FormData();
+      formData.append('document', fileToUpload);
       const res = await api.post(`/customers/upload?type=${type}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
