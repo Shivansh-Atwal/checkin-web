@@ -81,13 +81,16 @@ const Records: React.FC = () => {
     if (!filteredRecords.length) return;
 
     let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'Check-In Date,Guest Name,Mobile Number,Complete Address,ID Card Type,ID Card Number,State,Nationality,Room Number,Price Paid,No of Members,Bednights Spent,Status\n';
+    csvContent += 'Check-In Date,Check-Out Date,Guest Name,Mobile Number,Complete Address,ID Card Type,ID Card Number,State,Nationality,Room Number,Price Paid,No of Members,Bednights Spent,Status\n';
     
     filteredRecords.forEach((ci) => {
-      const formattedDate = new Date(ci.checkInTime).toLocaleDateString();
+      const formattedCheckInDate = new Date(ci.checkInTime).toLocaleDateString();
+      const formattedCheckOutDate = ci.status === 'CHECKED_OUT' && ci.actualCheckOutTime
+        ? new Date(ci.actualCheckOutTime).toLocaleDateString()
+        : '';
       const escapedAddress = `"${ci.completeAddress.replace(/"/g, '""')}"`;
       const escapedName = `"${ci.customerName.replace(/"/g, '""')}"`;
-      csvContent += `${formattedDate},${escapedName},${ci.mobileNumber},${escapedAddress},${ci.idCardType},${ci.idCardNumber},${ci.state},${ci.nationality},${ci.roomNumber},${ci.pricePaid},${ci.numberOfGuests},${ci.bednights},${ci.status}\n`;
+      csvContent += `${formattedCheckInDate},${formattedCheckOutDate},${escapedName},${ci.mobileNumber},${escapedAddress},${ci.idCardType},${ci.idCardNumber},${ci.state},${ci.nationality},${ci.roomNumber},${ci.pricePaid},${ci.numberOfGuests},${ci.bednights},${ci.status}\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
@@ -217,7 +220,7 @@ const Records: React.FC = () => {
                     </div>
 
                     {/* Stay Duration Stats */}
-                    <div className="grid grid-cols-3 gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-850">
+                    <div className={`grid ${ci.status === 'CHECKED_OUT' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-850`}>
                       <div>
                         <span className="text-[9px] uppercase font-bold text-slate-550 block">Check-In</span>
                         <span className="text-xs font-bold text-slate-200">
@@ -228,6 +231,18 @@ const Records: React.FC = () => {
                           })}
                         </span>
                       </div>
+                      {ci.status === 'CHECKED_OUT' && ci.actualCheckOutTime && (
+                        <div>
+                          <span className="text-[9px] uppercase font-bold text-slate-550 block">Check-Out</span>
+                          <span className="text-xs font-bold text-slate-200">
+                            {new Date(ci.actualCheckOutTime).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      )}
                       <div>
                         <span className="text-[9px] uppercase font-bold text-slate-550 block">Nights</span>
                         <span className="text-xs font-bold text-indigo-400 font-mono">{ci.bednights} nights</span>
