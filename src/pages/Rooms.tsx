@@ -203,7 +203,7 @@ const Rooms: React.FC = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold rounded-xl text-xs border border-slate-750 transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-slate-950 hover:bg-slate-900 text-slate-200 font-semibold rounded-xl text-xs border border-slate-700 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>

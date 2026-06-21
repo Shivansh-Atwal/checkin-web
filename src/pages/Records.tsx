@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../utils/api';
 import { FileDown, Search, ClipboardList, Calendar } from 'lucide-react';
+import { formatDate } from '../utils/dateFormatter';
 
 interface StayRecord {
   id: string;
@@ -84,9 +85,9 @@ const Records: React.FC = () => {
     csvContent += 'Check-In Date,Check-Out Date,Guest Name,Mobile Number,Complete Address,ID Card Type,ID Card Number,State,Nationality,Room Number,Room Price,No of Members,Bednights Spent,Status\n';
     
     filteredRecords.forEach((ci) => {
-      const formattedCheckInDate = new Date(ci.checkInTime).toLocaleDateString();
+      const formattedCheckInDate = formatDate(ci.checkInTime);
       const formattedCheckOutDate = ci.status === 'CHECKED_OUT' && ci.actualCheckOutTime
-        ? new Date(ci.actualCheckOutTime).toLocaleDateString()
+        ? formatDate(ci.actualCheckOutTime)
         : '';
       const escapedAddress = `"${ci.completeAddress.replace(/"/g, '""')}"`;
       const escapedName = `"${ci.customerName.replace(/"/g, '""')}"`;
@@ -224,22 +225,14 @@ const Records: React.FC = () => {
                       <div>
                         <span className="text-[9px] uppercase font-bold text-slate-550 block">Check-In</span>
                         <span className="text-xs font-bold text-slate-200">
-                          {new Date(ci.checkInTime).toLocaleDateString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
+                          {formatDate(ci.checkInTime)}
                         </span>
                       </div>
                       {ci.status === 'CHECKED_OUT' && ci.actualCheckOutTime && (
                         <div>
                           <span className="text-[9px] uppercase font-bold text-slate-550 block">Check-Out</span>
                           <span className="text-xs font-bold text-slate-200">
-                            {new Date(ci.actualCheckOutTime).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
+                            {formatDate(ci.actualCheckOutTime)}
                           </span>
                         </div>
                       )}

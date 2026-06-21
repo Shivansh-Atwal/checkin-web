@@ -12,6 +12,7 @@ import Employees from './pages/Employees';
 import Reports from './pages/Reports';
 import Records from './pages/Records';
 import AuditLogs from './pages/AuditLogs';
+import Inventory from './pages/Inventory';
 
 import {
   LayoutDashboard,
@@ -25,7 +26,8 @@ import {
   Menu,
   X,
   Map,
-  ClipboardList
+  ClipboardList,
+  Package
 } from 'lucide-react';
 
 const PrivateLayout: React.FC = () => {
@@ -49,8 +51,9 @@ const PrivateLayout: React.FC = () => {
     { label: 'Check-In', path: '/checkin', icon: CheckCircle, permission: 'checkins.create' },
     { label: 'Check-Out', path: '/checkout', icon: LogOut, permission: 'checkouts.create' },
     { label: 'Employees', path: '/employees', icon: UserCheck, permission: 'employees.manage' },
-    { label: 'State Reports', path: '/reports', icon: Map, permission: 'reports.read' },
+    { label: 'Reports & Revenue', path: '/reports', icon: Map, permission: 'reports.read' },
     { label: 'Stay Records', path: '/records', icon: ClipboardList, permission: 'reports.read' },
+    { label: 'Inventory', path: '/inventory', icon: Package, permission: 'dashboard.view' },
     { label: 'Audit Logs', path: '/logs', icon: History, permission: 'auditlogs.read' },
   ];
 
@@ -187,6 +190,7 @@ const PrivateLayout: React.FC = () => {
             <Route path="/employees" element={<Employees />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/records" element={<Records />} />
+            <Route path="/inventory" element={<Inventory />} />
             <Route path="/logs" element={<AuditLogs />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

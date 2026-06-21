@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import { Plus, X, Search, Phone, Ban, Pencil, MapPin, Globe, History, BookmarkCheck } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { formatDate } from '../utils/dateFormatter';
 
 interface Booking {
   id: string;
@@ -52,12 +53,50 @@ const Bookings: React.FC = () => {
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionField, setSuggestionField] = useState<'name' | 'mobile' | null>(null);
+
+  const fetchSuggestions = async (val: string, field: 'name' | 'mobile') => {
+    if (!val || val.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    try {
+      const res = await api.get(`/customers/search?q=${encodeURIComponent(val)}`);
+      if (res.data && res.data.success) {
+        setSuggestions(res.data.data);
+        setSuggestionField(field);
+        setShowSuggestions(true);
+      }
+    } catch (err) {
+      console.error('Error fetching customer suggestions:', err);
+    }
+  };
+
+  const handleSelectCustomer = (customer: any) => {
+    setCustomerId(customer.id);
+    setCustomerName(customer.fullName || '');
+    setMobileNumber(customer.mobileNumber || '');
+    setAddress(customer.address || '');
+    setCity(customer.city || '');
+    setState(customer.state || '');
+    setCountry(customer.country || '');
+    setPincode(customer.pincode || '');
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [country, setCountry] = useState('');
   const [pincode, setPincode] = useState('');
-  const [roomId, setRoomId] = useState('');
+  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
+  const [roomDropdownOpen, setRoomDropdownOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
   const [checkInDate, setCheckInDate] = useState('');
   const [checkOutDate, setCheckOutDate] = useState('');
   const [numberOfGuests, setNumberOfGuests] = useState(1);
@@ -68,10 +107,20 @@ const Bookings: React.FC = () => {
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setRoomDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Pre-fill room if navigated from dashboard
   React.useEffect(() => {
     if (location.state && location.state.roomId) {
-      setRoomId(location.state.roomId);
+      setSelectedRoomIds([location.state.roomId]);
       setModalOpen(true);
     }
   }, [location.state]);
@@ -133,6 +182,7 @@ const Bookings: React.FC = () => {
 
   const openEditModal = (booking: Booking) => {
     setEditingBooking(booking);
+    setCustomerId(booking.customerId);
     setCustomerName(booking.customer.fullName || '');
     setMobileNumber(booking.customer.mobileNumber || '');
     setAddress(booking.customer.address || '');
@@ -140,7 +190,7 @@ const Bookings: React.FC = () => {
     setState(booking.customer.state || '');
     setCountry(booking.customer.country || '');
     setPincode(booking.customer.pincode || '');
-    setRoomId(booking.roomId);
+    setSelectedRoomIds([booking.roomId]);
     
     setCheckInDate(new Date(booking.checkInDate).toISOString().split('T')[0]);
     setCheckOutDate(new Date(booking.checkOutDate).toISOString().split('T')[0]);
@@ -158,6 +208,7 @@ const Bookings: React.FC = () => {
   const closeModal = () => {
     setModalOpen(false);
     setEditingBooking(null);
+    setCustomerId(null);
     setCustomerName('');
     setMobileNumber('');
     setAddress('');
@@ -165,7 +216,7 @@ const Bookings: React.FC = () => {
     setState('');
     setCountry('');
     setPincode('');
-    setRoomId('');
+    setSelectedRoomIds([]);
     setCheckInDate('');
     setCheckOutDate('');
     setNumberOfGuests(1);
@@ -186,7 +237,7 @@ const Bookings: React.FC = () => {
       return;
     }
 
-    const payload = {
+    const payload: any = {
       customerName,
       mobileNumber,
       address,
@@ -194,7 +245,6 @@ const Bookings: React.FC = () => {
       state,
       country,
       pincode,
-      roomId,
       checkInDate,
       checkOutDate,
       numberOfGuests: Number(numberOfGuests),
@@ -204,6 +254,16 @@ const Bookings: React.FC = () => {
       status,
       registrationNumber: registrationNumber || undefined,
     };
+
+    if (editingBooking) {
+      payload.roomId = selectedRoomIds[0];
+    } else {
+      payload.roomIds = selectedRoomIds;
+    }
+
+    if (customerId) {
+      payload.customerId = customerId;
+    }
 
     const performBooking = async () => {
       if (editingBooking) {
@@ -312,8 +372,8 @@ const Bookings: React.FC = () => {
                     <p className="text-[10px] text-slate-500 font-mono capitalize">{booking.room?.roomType}</p>
                   </td>
                   <td className="p-4 space-y-0.5">
-                    <p><span className="text-slate-500 font-medium">Arrival:</span> {new Date(booking.checkInDate).toLocaleDateString()}</p>
-                    <p><span className="text-slate-500 font-medium">Departure:</span> {new Date(booking.checkOutDate).toLocaleDateString()}</p>
+                    <p><span className="text-slate-500 font-medium">Arrival:</span> {formatDate(booking.checkInDate)}</p>
+                    <p><span className="text-slate-500 font-medium">Departure:</span> {formatDate(booking.checkOutDate)}</p>
                   </td>
                   <td className="p-4 font-semibold text-emerald-400">₹{booking.advancePayment}</td>
                   <td className="p-4">{getStatusBadge(booking.status)}</td>
@@ -321,7 +381,7 @@ const Bookings: React.FC = () => {
                     {hasPermission('bookings.update') && (
                       <button
                         onClick={() => openEditModal(booking)}
-                        className="p-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer inline-flex"
+                        className="p-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-700 text-slate-200 hover:text-white rounded-lg transition-colors cursor-pointer inline-flex"
                         title="Edit Details"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -382,15 +442,15 @@ const Bookings: React.FC = () => {
 
               <div className="flex justify-between items-end border-t border-slate-800/80 pt-2.5">
                 <div className="text-[10px] space-y-0.5 text-slate-450">
-                  <p><span className="text-slate-500">Check-in:</span> {new Date(booking.checkInDate).toLocaleDateString()}</p>
-                  <p><span className="text-slate-500">Check-out:</span> {new Date(booking.checkOutDate).toLocaleDateString()}</p>
+                  <p><span className="text-slate-500">Check-in:</span> {formatDate(booking.checkInDate)}</p>
+                  <p><span className="text-slate-500">Check-out:</span> {formatDate(booking.checkOutDate)}</p>
                 </div>
                 
                 <div className="flex space-x-1.5">
                   {hasPermission('bookings.update') && (
                     <button
                       onClick={() => openEditModal(booking)}
-                      className="p-1.5 bg-slate-800 hover:bg-slate-750 text-slate-350 hover:text-white rounded-lg transition-colors cursor-pointer"
+                      className="p-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-700 text-slate-200 hover:text-white rounded-lg transition-colors cursor-pointer"
                       title="Edit Details"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -502,27 +562,93 @@ const Bookings: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Primary Guest Identity */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <label className="block text-xs font-semibold text-slate-450 mb-1.5">Guest Full Name</label>
                   <input
                     type="text"
                     required
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomerName(val);
+                      setCustomerId(null);
+                      fetchSuggestions(val, 'name');
+                    }}
+                    onBlur={() => setShowSuggestions(false)}
                     placeholder="e.g. Samuel Jackson"
                     className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
                   />
+                  {showSuggestions && suggestionField === 'name' && suggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
+                      {suggestions.map((cust) => (
+                        <div
+                          key={cust.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleSelectCustomer(cust);
+                          }}
+                          className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
+                        >
+                          <div className="flex justify-between items-start">
+                            <p className="font-semibold text-white text-xs">{cust.fullName}</p>
+                            <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
+                          </div>
+                          <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
+                            <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
+                            {cust.documents && cust.documents.length > 0 && (
+                              <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
+                                {cust.documents[0].idType}: {cust.documents[0].idNumber}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div>
+                <div className="relative">
                   <label className="block text-xs font-semibold text-slate-450 mb-1.5">Mobile Number</label>
                   <input
                     type="tel"
                     required
                     value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMobileNumber(val);
+                      setCustomerId(null);
+                      fetchSuggestions(val, 'mobile');
+                    }}
+                    onBlur={() => setShowSuggestions(false)}
                     placeholder="e.g. 9876543210"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
                   />
+                  {showSuggestions && suggestionField === 'mobile' && suggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
+                      {suggestions.map((cust) => (
+                        <div
+                          key={cust.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleSelectCustomer(cust);
+                          }}
+                          className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
+                        >
+                          <div className="flex justify-between items-start">
+                            <p className="font-semibold text-white text-xs">{cust.fullName}</p>
+                            <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
+                          </div>
+                          <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
+                            <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
+                            {cust.documents && cust.documents.length > 0 && (
+                              <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
+                                {cust.documents[0].idType}: {cust.documents[0].idNumber}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -629,21 +755,100 @@ const Bookings: React.FC = () => {
 
               {/* Room assignment & guests */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Assign Room</label>
-                  <select
-                    required
-                    value={roomId}
-                    onChange={(e) => setRoomId(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
+                <div className="relative" ref={dropdownRef}>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Assign Rooms</label>
+                  <div
+                    onClick={() => setRoomDropdownOpen(!roomDropdownOpen)}
+                    className="w-full min-h-[44px] bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none cursor-pointer flex items-center justify-between flex-wrap gap-1.5"
                   >
-                    <option value="">Select Room</option>
-                    {selectRooms.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        Room {r.roomNumber} ({r.roomType}) {(r as any).status ? `[${(r as any).status}]` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedRoomIds.length > 0 ? (
+                        selectedRoomIds.map((id) => {
+                          const room = selectRooms.find((r) => r.id === id);
+                          return (
+                            <span
+                              key={id}
+                              className="inline-flex items-center px-2 py-0.5 rounded bg-blue-600/20 border border-blue-500/30 text-xs font-semibold text-blue-300"
+                            >
+                              Room {room?.roomNumber || id}
+                              {!editingBooking && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedRoomIds(selectedRoomIds.filter((x) => x !== id));
+                                  }}
+                                  className="ml-1 text-blue-400 hover:text-blue-200 focus:outline-none"
+                                >
+                                  &times;
+                                </button>
+                              )}
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="text-slate-500 text-sm">Select Rooms...</span>
+                      )}
+                    </div>
+                    <span className="text-slate-400 text-xs">&#9662;</span>
+                  </div>
+                  {roomDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto p-2 space-y-1">
+                      {editingBooking ? (
+                        selectRooms.map((room) => {
+                          const isSelected = selectedRoomIds.includes(room.id);
+                          return (
+                            <label
+                              key={room.id}
+                              className="flex items-center space-x-2.5 p-2 rounded-lg hover:bg-slate-900 cursor-pointer text-slate-350 hover:text-white transition-colors"
+                            >
+                              <input
+                                type="radio"
+                                name="single-room-select"
+                                checked={isSelected}
+                                onChange={() => {
+                                  setSelectedRoomIds([room.id]);
+                                  setRoomDropdownOpen(false);
+                                }}
+                                className="w-4 h-4 rounded-full border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-xs font-medium">
+                                Room {room.roomNumber} ({room.roomType}) {(room as any).status ? `[${(room as any).status}]` : ''}
+                              </span>
+                            </label>
+                          );
+                        })
+                      ) : selectRooms.length > 0 ? (
+                        selectRooms.map((room) => {
+                          const isSelected = selectedRoomIds.includes(room.id);
+                          return (
+                            <label
+                              key={room.id}
+                              className="flex items-center space-x-2.5 p-2 rounded-lg hover:bg-slate-900 cursor-pointer text-slate-350 hover:text-white transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {
+                                  if (isSelected) {
+                                    setSelectedRoomIds(selectedRoomIds.filter((x) => x !== room.id));
+                                  } else {
+                                    setSelectedRoomIds([...selectedRoomIds, room.id]);
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-xs font-medium">
+                                Room {room.roomNumber} ({room.roomType})
+                              </span>
+                            </label>
+                          );
+                        })
+                      ) : (
+                        <div className="p-2 text-xs text-slate-500 text-center">No available rooms</div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-450 mb-1.5">Number of Guests</label>
@@ -711,7 +916,7 @@ const Bookings: React.FC = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold rounded-xl text-xs border border-slate-750 transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-slate-950 hover:bg-slate-900 text-slate-200 font-semibold rounded-xl text-xs border border-slate-700 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>

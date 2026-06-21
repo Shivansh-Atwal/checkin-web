@@ -39,8 +39,11 @@ api.interceptors.request.use(
             if (!refreshPromise) {
               refreshPromise = (async () => {
                 try {
+                  const tenantId = localStorage.getItem('tenantId') || 'public';
                   const refreshUrl = `${import.meta.env.VITE_API_URL || 'https://checkin-backend-70km.onrender.com/api'}/auth/refresh`;
-                  const res = await axios.post(refreshUrl, { refreshToken });
+                  const res = await axios.post(refreshUrl, { refreshToken }, {
+                    headers: { 'X-Tenant-Id': tenantId }
+                  });
                   if (res.data && res.data.success) {
                     const newAccessToken = res.data.data.accessToken;
                     const user = useAuthStore.getState().user;
@@ -122,8 +125,11 @@ api.interceptors.response.use(
       const refreshToken = useAuthStore.getState().refreshToken;
       if (refreshToken) {
         try {
+          const tenantId = localStorage.getItem('tenantId') || 'public';
           const refreshUrl = `${import.meta.env.VITE_API_URL || 'https://checkin-backend-70km.onrender.com/api'}/auth/refresh`;
-          const res = await axios.post(refreshUrl, { refreshToken });
+          const res = await axios.post(refreshUrl, { refreshToken }, {
+            headers: { 'X-Tenant-Id': tenantId }
+          });
 
           if (res.data && res.data.success) {
             const newAccessToken = res.data.data.accessToken;

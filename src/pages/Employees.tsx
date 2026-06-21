@@ -286,7 +286,7 @@ const Employees: React.FC = () => {
                   <div className="flex justify-end border-t border-slate-800/80 pt-2.5 space-x-2">
                     <button
                       onClick={() => openModal(emp)}
-                      className="flex items-center px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                      className="flex items-center px-3 py-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
                       title="Assign Permissions"
                     >
                       <Shield className="w-3.5 h-3.5 mr-1.5" />
@@ -297,7 +297,7 @@ const Employees: React.FC = () => {
                         setSelectedEmp(emp);
                         setPwdModalOpen(true);
                       }}
-                      className="flex items-center px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                      className="flex items-center px-3 py-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
                       title="Reset Password"
                     >
                       <KeyRound className="w-3.5 h-3.5 mr-1.5" />
@@ -434,7 +434,7 @@ const Employees: React.FC = () => {
                     <button
                       type="button"
                       onClick={closeModal}
-                      className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold rounded-xl text-xs border border-slate-750 transition-colors cursor-pointer"
+                      className="px-4 py-2 bg-slate-950 hover:bg-slate-900 text-slate-200 font-semibold rounded-xl text-xs border border-slate-700 transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -496,7 +496,7 @@ const Employees: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setPwdModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold rounded-xl text-xs border border-slate-750 transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-slate-950 hover:bg-slate-900 text-slate-200 font-semibold rounded-xl text-xs border border-slate-700 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>

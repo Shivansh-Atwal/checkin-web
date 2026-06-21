@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../utils/api';
 import { Search, X, Phone, Mail, MapPin, Printer } from 'lucide-react';
+import { formatDate } from '../utils/dateFormatter';
 
 interface Customer {
   id: string;
@@ -278,7 +279,7 @@ const Customers: React.FC = () => {
                 </div>
               </div>
               <div className="flex flex-col gap-2 items-end shrink-0">
-                <div className="px-2.5 py-1 bg-slate-800 hover:bg-slate-750 text-slate-350 text-[10px] uppercase font-bold rounded-lg border border-slate-750 transition-colors">
+                <div className="px-2.5 py-1 bg-slate-950 hover:bg-slate-900 text-slate-200 text-[10px] uppercase font-bold rounded-lg border border-slate-700 transition-colors cursor-pointer">
                   View History
                 </div>
                 {c.documents?.[0] && (c.documents[0].frontImageUrl || c.documents[0].backImageUrl || c.documents[0].customerPhotoUrl) && (
@@ -344,7 +345,7 @@ const Customers: React.FC = () => {
                     <div>
                       <span className="text-xs text-slate-500 block">Date of Birth</span>
                       <span className="font-semibold text-slate-200">
-                        {selectedCustomer.dob ? new Date(selectedCustomer.dob).toLocaleDateString() : 'N/A'}
+                        {selectedCustomer.dob ? formatDate(selectedCustomer.dob) : 'N/A'}
                       </span>
                     </div>
                     <div>
@@ -430,7 +431,7 @@ const Customers: React.FC = () => {
                             <div className="space-y-1">
                               <p className="font-semibold text-slate-200">Room {b.room.roomNumber}</p>
                               <p className="text-slate-400">
-                                {new Date(b.checkInDate).toLocaleDateString()} - {new Date(b.checkOutDate).toLocaleDateString()}
+                                {formatDate(b.checkInDate)} - {formatDate(b.checkOutDate)}
                               </p>
                             </div>
                             <div className="text-right space-y-1">

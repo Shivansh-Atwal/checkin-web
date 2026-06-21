@@ -170,7 +170,7 @@ const CheckOut: React.FC = () => {
           })}
             <button
               onClick={() => navigate('/')}
-              className="px-6 py-3 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold rounded-xl text-xs border border-slate-750 transition-colors cursor-pointer w-full mt-4"
+              className="px-6 py-3 bg-slate-950 hover:bg-slate-900 text-slate-200 font-semibold rounded-xl text-xs border border-slate-700 transition-colors cursor-pointer w-full mt-4"
             >
               Go to Dashboard
             </button>
@@ -334,6 +334,23 @@ const CheckOut: React.FC = () => {
                       <span>Base Room Rate ({calculations.nights} nights):</span>
                       <span className="font-mono text-white">₹{calculations.roomCharges.toFixed(2)}</span>
                     </div>
+                    {calculations.additionalCharges > 0 && (
+                      <div className="space-y-1.5 border-t border-slate-850 pt-2">
+                        <span className="text-[10px] text-slate-450 uppercase font-black tracking-wider block">Additional Ordered Items</span>
+                        {calculations.stayDetails && calculations.stayDetails.map((stay: any) => 
+                          stay.extraCharges && stay.extraCharges.map((charge: any) => (
+                            <div key={charge.id} className="flex justify-between text-xs text-slate-350 pl-2">
+                              <span>• {charge.itemName} {charge.quantity > 1 ? `x${charge.quantity}` : ''}:</span>
+                              <span className="font-mono text-white">₹{charge.amount.toFixed(2)}</span>
+                            </div>
+                          ))
+                        )}
+                        <div className="flex justify-between text-xs text-slate-400 font-semibold pt-1 border-t border-slate-900/40">
+                          <span>Total Additional Charges:</span>
+                          <span className="font-mono text-white">₹{calculations.additionalCharges.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-between border-t border-slate-800 pt-2 font-bold text-white text-base">
                       <span>Estimated Final Bill:</span>
                       <span>₹{calculations.finalAmount.toFixed(2)}</span>

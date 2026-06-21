@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../utils/api';
 import { useNavigate } from 'react-router-dom';
+import { formatDate } from '../utils/dateFormatter';
 import {
   Bed,
   X,
@@ -35,6 +36,11 @@ interface Stats {
   pendingPayments: number;
 }
 
+const PRESET_ITEMS = [
+  { name: 'Water Bottle'},
+  { name: 'Tea'},
+];
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -61,6 +67,93 @@ const Dashboard: React.FC = () => {
     },
     enabled: !!selectedRoom,
   });
+
+  // Additional Item Orders States
+  const [extraItemName, setExtraItemName] = useState('');
+  const [extraItemPrice, setExtraItemPrice] = useState('');
+  const [extraItemQty, setExtraItemQty] = useState('1');
+  const [extraItemLoading, setExtraItemLoading] = useState(false);
+  const [drawerPreset, setDrawerPreset] = useState<string>('custom');
+
+  // Quick Add Item States
+  const [quickAddStayId, setQuickAddStayId] = useState<string | null>(null);
+  const [quickAddRoomNum, setQuickAddRoomNum] = useState<string | null>(null);
+  const [quickItemName, setQuickItemName] = useState('');
+  const [quickItemPrice, setQuickItemPrice] = useState('');
+  const [quickItemQty, setQuickItemQty] = useState('1');
+  const [quickItemLoading, setQuickItemLoading] = useState(false);
+  const [quickPreset, setQuickPreset] = useState<string>('custom');
+
+  const handleAddExtraItem = async () => {
+    const checkInId = roomDetailsRes?.data?.checkIns?.[0]?.id;
+    if (!checkInId) return;
+    if (!extraItemName.trim() || !extraItemPrice.trim() || !extraItemQty.trim()) {
+      alert('Please enter item name, price, and quantity.');
+      return;
+    }
+    const qty = parseInt(extraItemQty, 10);
+    if (isNaN(qty) || qty <= 0) {
+      alert('Quantity must be a positive integer.');
+      return;
+    }
+    setExtraItemLoading(true);
+    try {
+      await api.post(`/stay/checkin/${checkInId}/extra-charges`, {
+        itemName: extraItemName.trim(),
+        amount: Number(extraItemPrice) * qty,
+        quantity: qty,
+      });
+      setExtraItemName('');
+      setExtraItemPrice('');
+      setExtraItemQty('1');
+      setDrawerPreset('custom');
+      // Invalidate queries to refresh details
+      queryClient.invalidateQueries({ queryKey: ['room-details', selectedRoom?.id] });
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to add charge.');
+    } finally {
+      setExtraItemLoading(false);
+    }
+  };
+
+  const handleQuickAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickAddStayId) return;
+    if (!quickItemName.trim() || !quickItemPrice.trim() || !quickItemQty.trim()) {
+      alert('Please enter item name, price, and quantity.');
+      return;
+    }
+    const qty = parseInt(quickItemQty, 10);
+    if (isNaN(qty) || qty <= 0) {
+      alert('Quantity must be a positive integer.');
+      return;
+    }
+    setQuickItemLoading(true);
+    try {
+      await api.post(`/stay/checkin/${quickAddStayId}/extra-charges`, {
+        itemName: quickItemName.trim(),
+        amount: Number(quickItemPrice) * qty,
+        quantity: qty,
+      });
+      setQuickItemName('');
+      setQuickItemPrice('');
+      setQuickItemQty('1');
+      setQuickPreset('custom');
+      setQuickAddStayId(null);
+      setQuickAddRoomNum(null);
+      // Invalidate queries to refresh rooms inventory
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      // If the selected room is the one we just added an item to, refresh its details too
+      if (selectedRoom) {
+        queryClient.invalidateQueries({ queryKey: ['room-details', selectedRoom.id] });
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to add charge.');
+    } finally {
+      setQuickItemLoading(false);
+    }
+  };
 
   // Toggle Maintenance Mutation
   const updateStatusMutation = useMutation({
@@ -173,6 +266,7 @@ const Dashboard: React.FC = () => {
                   Fl {room.floorNumber}
                 </span>
               </div>
+
               <div>
                 <p className="text-xs font-bold text-slate-300 tracking-wider truncate">
                   {room.roomType}
@@ -180,14 +274,13 @@ const Dashboard: React.FC = () => {
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-sm font-semibold text-white">
                     {room.status === 'OCCUPIED' && room.checkIns?.[0] ? (
-                      `₹${room.checkIns[0].pricePerNight.toFixed(2)}/nt`
+                      `₹${(room.checkIns?.[0]?.pricePerNight || 0).toFixed(2)}/nt`
                     ) : room.status === 'ADVANCE_BOOKED' && room.bookings?.[0] ? (
-                      `₹${room.bookings[0].price.toFixed(2)}/nt`
+                      `₹${(room.bookings?.[0]?.price || 0).toFixed(2)}/nt`
                     ) : (
                       '₹ Custom'
                     )}
                   </span>
-                  <span className="w-2.5 h-2.5 rounded-full bg-current" />
                 </div>
               </div>
             </div>
@@ -249,15 +342,28 @@ const Dashboard: React.FC = () => {
                           <div className="flex items-center text-sm">
                             <User className="w-4 h-4 text-slate-500 mr-2.5 shrink-0" />
                             <span className="font-semibold text-slate-200">
-                              {roomDetailsRes.data.checkIns[0].customer.fullName}
+                              {roomDetailsRes.data.checkIns[0].customer.fullName} {roomDetailsRes.data.checkIns[0].customer.gender ? `(${roomDetailsRes.data.checkIns[0].customer.gender})` : ''}
                             </span>
                           </div>
                           <div className="flex items-center text-sm">
                             <Phone className="w-4 h-4 text-slate-500 mr-2.5 shrink-0" />
                             <span className="text-slate-350">
                               {roomDetailsRes.data.checkIns[0].customer.mobileNumber}
+                              {roomDetailsRes.data.checkIns[0].customer.alternateNumber && ` / ${roomDetailsRes.data.checkIns[0].customer.alternateNumber}`}
                             </span>
                           </div>
+                          {roomDetailsRes.data.checkIns[0].customer.email && (
+                            <div className="flex items-center text-sm text-slate-350">
+                              <span className="w-4 text-slate-550 mr-2.5 text-center font-bold font-mono">@</span>
+                              <span className="truncate">{roomDetailsRes.data.checkIns[0].customer.email}</span>
+                            </div>
+                          )}
+                          {roomDetailsRes.data.checkIns[0].customer.dob && (
+                            <div className="flex items-center text-sm text-slate-350">
+                              <Calendar className="w-4 h-4 text-slate-500 mr-2.5 shrink-0" />
+                              <span>DOB: {formatDate(roomDetailsRes.data.checkIns[0].customer.dob)}</span>
+                            </div>
+                          )}
                           {(roomDetailsRes.data.checkIns[0].customer.address || roomDetailsRes.data.checkIns[0].customer.city) && (
                             <div className="flex items-start text-sm">
                               <MapPin className="w-4 h-4 text-slate-500 mr-2.5 shrink-0 mt-0.5" />
@@ -315,13 +421,114 @@ const Dashboard: React.FC = () => {
                                     <div>Reg No: <span className="text-slate-200 font-mono">{other.registrationNumber}</span></div>
                                     <div>Guests: <span className="text-slate-200">{other.numberOfGuests}</span></div>
                                     <div>Rate: <span className="text-slate-200">₹{other.pricePerNight}/nt</span></div>
-                                    <div>Out: <span className="text-slate-200">{new Date(other.expectedCheckOutDate).toLocaleDateString()}</span></div>
+                                    <div>Out: <span className="text-slate-200">{formatDate(other.expectedCheckOutDate)}</span></div>
                                   </div>
                                 </div>
                               ))}
                             </div>
                           </div>
                         )}
+
+                        {/* Additional Room Charges Section */}
+                        <div className="space-y-4 pt-4 border-t border-slate-800/85">
+                          <h4 className="text-xs font-bold text-slate-350 uppercase tracking-wider">Additional Room Charges</h4>
+                          
+                          {/* List of charges */}
+                          <div className="space-y-2">
+                            {roomDetailsRes.data.checkIns[0].extraCharges && roomDetailsRes.data.checkIns[0].extraCharges.length > 0 ? (
+                              roomDetailsRes.data.checkIns[0].extraCharges.map((charge: any) => (
+                                <div key={charge.id} className="flex justify-between items-center bg-slate-950/40 px-3.5 py-2.5 rounded-xl border border-slate-850 text-xs">
+                                  <span className="text-slate-300 font-semibold">
+                                    {charge.itemName} {charge.quantity > 1 ? `x${charge.quantity}` : ''}
+                                  </span>
+                                  <span className="font-mono font-bold text-emerald-450">₹{charge.amount.toFixed(2)}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-xs text-slate-500 italic">No additional items ordered yet.</p>
+                            )}
+                          </div>
+
+                          {/* Form to add charge */}
+                          <div className="bg-slate-950/30 p-4 rounded-2xl border border-slate-850 space-y-3">
+                            <span className="text-[10px] uppercase font-black tracking-wider block text-slate-450">Add Ordered Item</span>
+                            
+                            <div className="space-y-1">
+                              <select
+                                value={drawerPreset}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDrawerPreset(val);
+                                  if (val === 'custom') {
+                                    setExtraItemName('');
+                                    setExtraItemPrice('');
+                                  } else {
+                                    const preset = PRESET_ITEMS[parseInt(val)];
+                                    if (preset) {
+                                      setExtraItemName(preset.name);
+                                    }
+                                  }
+                                }}
+                                className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-xl px-3 py-2 text-xs text-white outline-none cursor-pointer"
+                              >
+                                <option value="custom">-- Custom Item --</option>
+                                {PRESET_ITEMS.map((item, idx) => (
+                                  <option key={idx} value={idx}>
+                                    {item.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+  {/* Inputs Row */}
+  <div className="flex gap-2 items-center">
+    <input
+      type="text"
+      placeholder="Item name"
+      value={extraItemName}
+      onChange={(e) => {
+        setExtraItemName(e.target.value);
+        setDrawerPreset('custom');
+      }}
+      className="flex-grow bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-xl px-3 py-2.5 text-xs text-white outline-none"
+    />
+
+    <input
+      type="number"
+      placeholder="Price"
+      value={extraItemPrice}
+      onChange={(e) => {
+        setExtraItemPrice(e.target.value);
+        setDrawerPreset('custom');
+      }}
+      className="w-16 bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-xl px-2 py-2.5 text-xs text-white outline-none font-mono"
+    />
+
+    <input
+      type="number"
+      placeholder="Qty"
+      min="1"
+      value={extraItemQty}
+      onChange={(e) => {
+        setExtraItemQty(e.target.value);
+      }}
+      className="w-12 bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-xl px-2 py-2.5 text-xs text-white outline-none font-mono"
+    />
+  </div>
+
+  {/* Button Row */}
+  <button
+    type="button"
+    onClick={handleAddExtraItem}
+    disabled={extraItemLoading}
+    className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed font-mono"
+  >
+    {extraItemLoading ? '...' : 'Add'}
+  </button>
+</div>
+                          </div>
+                        </div>
                       </div>
                     )}
 
@@ -333,15 +540,28 @@ const Dashboard: React.FC = () => {
                           <div className="flex items-center text-sm">
                             <User className="w-4 h-4 text-slate-500 mr-2.5 shrink-0" />
                             <span className="font-semibold text-slate-200">
-                              {roomDetailsRes.data.bookings[0].customer.fullName}
+                              {roomDetailsRes.data.bookings[0].customer.fullName} {roomDetailsRes.data.bookings[0].customer.gender ? `(${roomDetailsRes.data.bookings[0].customer.gender})` : ''}
                             </span>
                           </div>
                           <div className="flex items-center text-sm">
                             <Phone className="w-4 h-4 text-slate-500 mr-2.5 shrink-0" />
                             <span className="text-slate-350">
                               {roomDetailsRes.data.bookings[0].customer.mobileNumber}
+                              {roomDetailsRes.data.bookings[0].customer.alternateNumber && ` / ${roomDetailsRes.data.bookings[0].customer.alternateNumber}`}
                             </span>
                           </div>
+                          {roomDetailsRes.data.bookings[0].customer.email && (
+                            <div className="flex items-center text-sm text-slate-350">
+                              <span className="w-4 text-slate-550 mr-2.5 text-center font-bold font-mono">@</span>
+                              <span className="truncate">{roomDetailsRes.data.bookings[0].customer.email}</span>
+                            </div>
+                          )}
+                          {roomDetailsRes.data.bookings[0].customer.dob && (
+                            <div className="flex items-center text-sm text-slate-350">
+                              <Calendar className="w-4 h-4 text-slate-500 mr-2.5 shrink-0" />
+                              <span>DOB: {formatDate(roomDetailsRes.data.bookings[0].customer.dob)}</span>
+                            </div>
+                          )}
                           {(roomDetailsRes.data.bookings[0].customer.address || roomDetailsRes.data.bookings[0].customer.city) && (
                             <div className="flex items-start text-sm">
                               <MapPin className="w-4 h-4 text-slate-500 mr-2.5 shrink-0 mt-0.5" />
@@ -359,7 +579,7 @@ const Dashboard: React.FC = () => {
                           <div className="flex items-center text-sm">
                             <Calendar className="w-4 h-4 text-slate-500 mr-2.5 shrink-0" />
                             <span className="text-slate-400 text-xs">
-                              Stay: {new Date(roomDetailsRes.data.bookings[0].checkInDate).toLocaleDateString()} to {new Date(roomDetailsRes.data.bookings[0].checkOutDate).toLocaleDateString()}
+                              Stay: {formatDate(roomDetailsRes.data.bookings[0].checkInDate)} to {formatDate(roomDetailsRes.data.bookings[0].checkOutDate)}
                             </span>
                           </div>
                           <div className="flex items-center text-sm border-t border-slate-800/80 pt-2.5 mt-2.5">
@@ -391,7 +611,7 @@ const Dashboard: React.FC = () => {
                                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-slate-400">
                                     <div>Guests: <span className="text-slate-200">{other.numberOfGuests}</span></div>
                                     <div>Rate: <span className="text-slate-200">₹{other.price}/nt</span></div>
-                                    <div className="col-span-2">Stay: <span className="text-slate-200">{new Date(other.checkInDate).toLocaleDateString()} to {new Date(other.checkOutDate).toLocaleDateString()}</span></div>
+                                    <div className="col-span-2">Stay: <span className="text-slate-200">{formatDate(other.checkInDate)} to {formatDate(other.checkOutDate)}</span></div>
                                   </div>
                                 </div>
                               ))}
@@ -484,7 +704,7 @@ const Dashboard: React.FC = () => {
               {selectedRoom.status === 'MAINTENANCE' && (
                 <button
                   onClick={() => updateStatusMutation.mutate({ roomId: selectedRoom.id, status: 'AVAILABLE' })}
-                  className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs border border-slate-750 transition-colors cursor-pointer"
+                  className="w-full py-3 px-4 bg-slate-950 hover:bg-slate-900 text-white font-bold rounded-xl text-xs border border-slate-700 transition-colors cursor-pointer"
                 >
                   Mark Available (Clean)
                 </button>
@@ -494,13 +714,164 @@ const Dashboard: React.FC = () => {
               {selectedRoom.status === 'AVAILABLE' && (
                 <button
                   onClick={() => updateStatusMutation.mutate({ roomId: selectedRoom.id, status: 'MAINTENANCE' })}
-                  className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl text-xs transition-colors cursor-pointer"
+                  className="w-full py-2.5 px-4 bg-slate-950 hover:bg-slate-900 text-slate-200 hover:text-white rounded-xl text-xs border border-slate-700 transition-colors cursor-pointer"
                 >
                   Send to Maintenance Room
                 </button>
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Quick Add Extra Charge Modal */}
+      {quickAddStayId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            onClick={() => {
+              setQuickAddStayId(null);
+              setQuickAddRoomNum(null);
+              setQuickItemName('');
+              setQuickItemPrice('');
+              setQuickItemQty('1');
+              setQuickPreset('custom');
+            }}
+          />
+
+          {/* Modal Content */}
+          <form
+            onSubmit={handleQuickAddSubmit}
+            className="relative w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-10 animate-fade-in"
+          >
+            {/* Header */}
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/60 backdrop-blur-md">
+              <div>
+                <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                  Add Additional Item
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Room {quickAddRoomNum}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickAddStayId(null);
+                  setQuickAddRoomNum(null);
+                  setQuickItemName('');
+                  setQuickItemPrice('');
+                  setQuickItemQty('1');
+                  setQuickPreset('custom');
+                }}
+                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-black tracking-wider text-slate-500">Preset Item</label>
+                <select
+                  value={quickPreset}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setQuickPreset(val);
+                    if (val === 'custom') {
+                      setQuickItemName('');
+                      setQuickItemPrice('');
+                    } else {
+                      const preset = PRESET_ITEMS[parseInt(val)];
+                      if (preset) {
+                        setQuickItemName(preset.name);
+                        setQuickItemPrice('');
+                      }
+                    }
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none cursor-pointer"
+                >
+                  <option value="custom">-- Custom Item --</option>
+                  {PRESET_ITEMS.map((item, idx) => (
+                    <option key={idx} value={idx}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-black tracking-wider text-slate-500">Item Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Water Bottle, Tea, Snacks"
+                  value={quickItemName}
+                  onChange={(e) => {
+                    setQuickItemName(e.target.value);
+                    setQuickPreset('custom');
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-black tracking-wider text-slate-500">Price (₹)</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="any"
+                  placeholder="Price in Rupees"
+                  value={quickItemPrice}
+                  onChange={(e) => {
+                    setQuickItemPrice(e.target.value);
+                    setQuickPreset('custom');
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-black tracking-wider text-slate-500">Quantity</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="Quantity"
+                  value={quickItemQty}
+                  onChange={(e) => setQuickItemQty(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-slate-800 bg-slate-900/40 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickAddStayId(null);
+                  setQuickAddRoomNum(null);
+                  setQuickItemName('');
+                  setQuickItemPrice('');
+                  setQuickItemQty('1');
+                  setQuickPreset('custom');
+                }}
+                className="px-4 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={quickItemLoading}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                {quickItemLoading ? 'Adding...' : 'Add Charge'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

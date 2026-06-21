@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../utils/api';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -76,12 +76,75 @@ const CheckIn: React.FC = () => {
 
   const [bookingId, setBookingId] = useState<string | null>(null);
 
-  // Form inputs (Arrival Date and Time defaults)
   const [customerName, setCustomerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
-  const [roomId, setRoomId] = useState('');
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionField, setSuggestionField] = useState<'name' | 'mobile' | null>(null);
+
+  const fetchSuggestions = async (val: string, field: 'name' | 'mobile') => {
+    if (!val || val.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    try {
+      const res = await api.get(`/customers/search?q=${encodeURIComponent(val)}`);
+      if (res.data && res.data.success) {
+        setSuggestions(res.data.data);
+        setSuggestionField(field);
+        setShowSuggestions(true);
+      }
+    } catch (err) {
+      console.error('Error fetching customer suggestions:', err);
+    }
+  };
+
+  const handleSelectCustomer = (customer: any) => {
+    setCustomerId(customer.id);
+    setCustomerName(customer.fullName || '');
+    setMobileNumber(customer.mobileNumber || '');
+    setAddress(customer.address || '');
+    setCity(customer.city || '');
+    setState(customer.state || '');
+    setCountry(customer.country || '');
+    setPincode(customer.pincode || '');
+    
+    if (customer.documents && customer.documents.length > 0) {
+      const doc = customer.documents[0];
+      setIdType(doc.idType || 'Aadhaar Card');
+      setIdNumber(doc.idNumber || '');
+      setFrontImageUrl(doc.frontImageUrl || '');
+      setBackImageUrl(doc.backImageUrl || '');
+      setPhotoUrl(doc.customerPhotoUrl || '');
+    } else {
+      setIdType('Aadhaar Card');
+      setIdNumber('');
+      setFrontImageUrl('');
+      setBackImageUrl('');
+      setPhotoUrl('');
+    }
+    
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
+  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
+  const [roomDropdownOpen, setRoomDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setRoomDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [numberOfGuests, setNumberOfGuests] = useState(1);
-  const [numberOfRooms, setNumberOfRooms] = useState(1); // Added number of rooms state
   const [arrivalDate, setArrivalDate] = useState(new Date().toISOString().split('T')[0]);
   const [arrivalTime, setArrivalTime] = useState(new Date().toTimeString().slice(0, 5));
   const [advancePaid, setAdvancePaid] = useState(0);
@@ -143,7 +206,7 @@ const CheckIn: React.FC = () => {
         setBookingId(location.state.bookingId);
       }
       if (location.state.roomId) {
-        setRoomId(location.state.roomId);
+        setSelectedRoomIds([location.state.roomId]);
       }
     }
   }, [location.state]);
@@ -171,7 +234,7 @@ const CheckIn: React.FC = () => {
       const b = bookingRes.data;
       setCustomerName(b.customer.fullName);
       setMobileNumber(b.customer.mobileNumber);
-      setRoomId(b.roomId);
+      setSelectedRoomIds([b.roomId]);
       setNumberOfGuests(b.numberOfGuests);
       setPriceCost(b.price);
       setAdvancePaid(0); // Additional paid on arrival
@@ -202,8 +265,8 @@ const CheckIn: React.FC = () => {
     e.preventDefault();
 
     // Secondary validation block
-    if (numberOfRooms > freeRoomsCount) {
-      setError(`Requested ${numberOfRooms} rooms but only ${freeRoomsCount} rooms are currently free.`);
+    if (selectedRoomIds.length > freeRoomsCount) {
+      setError(`Requested ${selectedRoomIds.length} rooms but only ${freeRoomsCount} rooms are currently free.`);
       return;
     }
 
@@ -212,12 +275,11 @@ const CheckIn: React.FC = () => {
 
     // Default stay calculations to 1 base night since check-out isn't scheduled
     const nights = 1;
-    const totalEstimate = priceCost * nights * numberOfRooms;
+    const totalEstimate = priceCost * nights * selectedRoomIds.length;
     const remainingAmount = Math.max(0, totalEstimate - advancePaid);
 
     const payload: any = {
       numberOfGuests: Number(numberOfGuests),
-      numberOfRooms: Number(numberOfRooms),
       arrivalDate,
       arrivalTime,
       advancePaid: Number(advancePaid),
@@ -227,13 +289,16 @@ const CheckIn: React.FC = () => {
       pricePerNight: Number(priceCost),
     };
 
-    if (roomId) {
-      payload.roomId = roomId;
+    if (selectedRoomIds.length > 0) {
+      payload.roomIds = selectedRoomIds;
     }
 
     if (bookingId) {
       payload.bookingId = bookingId;
     } else {
+      if (customerId) {
+        payload.customerId = customerId;
+      }
       payload.customerName = customerName;
       payload.mobileNumber = mobileNumber;
       payload.address = address;
@@ -253,7 +318,7 @@ const CheckIn: React.FC = () => {
     checkinMutation.mutate(payload);
   };
 
-  const isOvercapacity = numberOfRooms > freeRoomsCount;
+  const isOvercapacity = selectedRoomIds.length > freeRoomsCount;
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -284,27 +349,93 @@ const CheckIn: React.FC = () => {
           {!bookingId ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <label className="block text-xs font-semibold text-slate-450 mb-1.5">Guest Name</label>
                   <input
                     type="text"
                     required
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomerName(val);
+                      setCustomerId(null);
+                      fetchSuggestions(val, 'name');
+                    }}
+                    onBlur={() => setShowSuggestions(false)}
                     placeholder="e.g. Samuel L. Jackson"
                     className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
                   />
+                  {showSuggestions && suggestionField === 'name' && suggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
+                      {suggestions.map((cust) => (
+                        <div
+                          key={cust.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleSelectCustomer(cust);
+                          }}
+                          className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
+                        >
+                          <div className="flex justify-between items-start">
+                            <p className="font-semibold text-white text-xs">{cust.fullName}</p>
+                            <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
+                          </div>
+                          <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
+                            <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
+                            {cust.documents && cust.documents.length > 0 && (
+                              <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
+                                {cust.documents[0].idType}: {cust.documents[0].idNumber}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div>
+                <div className="relative">
                   <label className="block text-xs font-semibold text-slate-450 mb-1.5">Mobile Number</label>
                   <input
                     type="tel"
                     required
                     value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMobileNumber(val);
+                      setCustomerId(null);
+                      fetchSuggestions(val, 'mobile');
+                    }}
+                    onBlur={() => setShowSuggestions(false)}
                     placeholder="e.g. 9876543210"
                     className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
                   />
+                  {showSuggestions && suggestionField === 'mobile' && suggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
+                      {suggestions.map((cust) => (
+                        <div
+                          key={cust.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleSelectCustomer(cust);
+                          }}
+                          className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
+                        >
+                          <div className="flex justify-between items-start">
+                            <p className="font-semibold text-white text-xs">{cust.fullName}</p>
+                            <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
+                          </div>
+                          <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
+                            <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
+                            {cust.documents && cust.documents.length > 0 && (
+                              <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
+                                {cust.documents[0].idType}: {cust.documents[0].idNumber}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -525,16 +656,89 @@ const CheckIn: React.FC = () => {
           {/* Allocation details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Room Allocation</label>
-              {roomId ? (
-                <div className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3.5 text-sm text-slate-350">
-                  {bookingId 
-                    ? `Prefilled from Booking` 
-                    : `Selected Room: ${rooms.find(r => r.id === roomId)?.roomNumber || 'Room ' + roomId}`}
+              {bookingId ? (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Room Allocation</label>
+                  <div className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3.5 text-sm text-slate-350 flex flex-wrap gap-1.5">
+                    {selectedRoomIds.map((id) => {
+                      const room = rooms.find((r) => r.id === id);
+                      return (
+                        <span key={id} className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-white">
+                          Room {room?.roomNumber || 'Prefilled'}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
-                <div className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3.5 text-sm text-emerald-400 font-semibold font-mono">
-                  Auto-Allocate Free Room
+                <div className="relative" ref={dropdownRef}>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Room Allocation</label>
+                  <div
+                    onClick={() => setRoomDropdownOpen(!roomDropdownOpen)}
+                    className="w-full min-h-[44px] bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none cursor-pointer flex items-center justify-between flex-wrap gap-1.5"
+                  >
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedRoomIds.length > 0 ? (
+                        selectedRoomIds.map((id) => {
+                          const room = rooms.find((r) => r.id === id);
+                          return (
+                            <span
+                              key={id}
+                              className="inline-flex items-center px-2 py-0.5 rounded bg-blue-600/20 border border-blue-500/30 text-xs font-semibold text-blue-300"
+                            >
+                              Room {room?.roomNumber || id}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRoomIds(selectedRoomIds.filter((x) => x !== id));
+                                }}
+                                className="ml-1 text-blue-400 hover:text-blue-200 focus:outline-none"
+                              >
+                                &times;
+                              </button>
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="text-slate-500 text-sm">Select Rooms...</span>
+                      )}
+                    </div>
+                    <span className="text-slate-400 text-xs">&#9662;</span>
+                  </div>
+                  {roomDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto p-2 space-y-1">
+                      {rooms.length > 0 ? (
+                        rooms.map((room) => {
+                          const isSelected = selectedRoomIds.includes(room.id);
+                          return (
+                            <label
+                              key={room.id}
+                              className="flex items-center space-x-2.5 p-2 rounded-lg hover:bg-slate-900 cursor-pointer text-slate-350 hover:text-white transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {
+                                  if (isSelected) {
+                                    setSelectedRoomIds(selectedRoomIds.filter((x) => x !== room.id));
+                                  } else {
+                                    setSelectedRoomIds([...selectedRoomIds, room.id]);
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-xs font-medium">
+                                Room {room.roomNumber} ({room.roomType})
+                              </span>
+                            </label>
+                          );
+                        })
+                      ) : (
+                        <div className="p-2 text-xs text-slate-500 text-center">No available rooms</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -550,19 +754,8 @@ const CheckIn: React.FC = () => {
             </div>
           </div>
 
-          {/* Rooms requested count */}
+          {/* Rooms requested info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Number of Rooms Requested</label>
-              <input
-                type="number"
-                min={1}
-                required
-                value={numberOfRooms}
-                onChange={(e) => setNumberOfRooms(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-              />
-            </div>
             <div className="flex flex-col justify-end">
               <span className="text-xs text-slate-500 mb-1">Status of Free Rooms</span>
               <span className="text-sm font-semibold text-slate-350 px-1 py-2 font-mono">
@@ -576,7 +769,7 @@ const CheckIn: React.FC = () => {
             <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded-xl flex items-start">
               <ShieldAlert className="w-4.5 h-4.5 mr-2.5 mt-0.5 shrink-0" />
               <p>
-                Cannot proceed: You requested {numberOfRooms} rooms, but only {freeRoomsCount} rooms are currently free (available).
+                Cannot proceed: You requested {selectedRoomIds.length} rooms, but only {freeRoomsCount} rooms are currently free (available).
               </p>
             </div>
           )}
