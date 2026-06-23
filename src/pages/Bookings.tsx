@@ -421,7 +421,7 @@ const Bookings: React.FC = () => {
       advancePayment: Number(advancePayment),
       notes,
       status,
-      registrationNumber: registrationNumber || undefined,
+      registrationNumber: registrationNumber || '',
       document: {
         idType,
         idNumber,

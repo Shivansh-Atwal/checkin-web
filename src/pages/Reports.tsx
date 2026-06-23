@@ -16,35 +16,23 @@ interface ReportsData {
   detailedRecords?: any[];
 }
 
-interface CheckoutRecord {
-  additionalCharges: number;
-}
-
-interface CheckInSummary {
-  checkoutRecord?: CheckoutRecord | null;
-}
-
-interface PaymentLedgerItem {
-  id: string;
-  amount: number;
-  paymentType: string;
-  paymentDate: string;
-  checkIn?: CheckInSummary | null;
-}
 
 const Reports: React.FC = () => {
   const { hasPermission } = useAuthStore();
   const canReadPayments = hasPermission('payments.read');
 
-  // Initialize start date to 1st of the current month and end date to today
-  const [startDate, setStartDate] = React.useState(() => {
-    const d = new Date();
-    d.setDate(1); // 1st of this month
-    return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = React.useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  // Initialize dates to empty strings so the user is forced to select them first
+  const [startDate, setStartDate] = React.useState('');
+  const [endDate, setEndDate] = React.useState('');
+
+  const [revenueData, setRevenueData] = React.useState<{
+    totalRevenue: number;
+    roomRevenue: number;
+    additionalItemsRevenue: number;
+    bookingsCount: number;
+  } | null>(null);
+  const [revenueLoading, setRevenueLoading] = React.useState(false);
+  const [revenueError, setRevenueError] = React.useState<string | null>(null);
 
   // Fetch reports data
   const { data: reportsRes, isLoading: reportsLoading } = useQuery({
@@ -52,49 +40,36 @@ const Reports: React.FC = () => {
     queryFn: () => api.get('/admin/reports').then((res) => res.data),
   });
 
-  // Fetch payments ledger if authorized
-  const { data: ledgerRes, isLoading: ledgerLoading } = useQuery({
-    queryKey: ['payment-ledger'],
-    queryFn: () => api.get('/stay/payments/ledger').then((res) => res.data),
-    enabled: canReadPayments,
-  });
-
   const reportData: ReportsData = reportsRes?.data || {
     stateWiseData: [],
   };
 
-  const paymentsList: PaymentLedgerItem[] = ledgerRes?.data || [];
+  const handleFetchRevenue = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!startDate || !endDate) {
+      setRevenueError('Please select both start and end dates.');
+      return;
+    }
+    if (new Date(endDate) < new Date(startDate)) {
+      setRevenueError('End date must be on or after start date.');
+      return;
+    }
 
-  // Compute total revenue and breakdown
-  const { totalRevenue, additionalItemsRevenue, roomRevenue } = React.useMemo(() => {
-    let roomRev = 0;
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T23:59:59.999`);
-
-    const detailedList: any[] = reportsRes?.data?.detailedRecords || [];
-    detailedList.forEach((ci) => {
-      const ciDate = new Date(ci.checkInTime);
-      if (ciDate >= start && ciDate <= end) {
-        roomRev += (ci.roomPrice || 0) * (ci.bednights || 0);
+    setRevenueLoading(true);
+    setRevenueError(null);
+    try {
+      const res = await api.get(`/admin/revenue-report?startDate=${startDate}&endDate=${endDate}`);
+      if (res.data && res.data.success) {
+        setRevenueData(res.data.data);
+      } else {
+        setRevenueError('Failed to fetch revenue data.');
       }
-    });
-
-    let additional = 0;
-    paymentsList.forEach((p) => {
-      const pDate = new Date(p.paymentDate);
-      if (pDate >= start && pDate <= end) {
-        if (p.paymentType === 'FULL' && p.checkIn?.checkoutRecord) {
-          additional += p.checkIn.checkoutRecord.additionalCharges || 0;
-        }
-      }
-    });
-
-    return {
-      totalRevenue: roomRev + additional,
-      additionalItemsRevenue: additional,
-      roomRevenue: roomRev,
-    };
-  }, [reportsRes, paymentsList, startDate, endDate]);
+    } catch (err: any) {
+      setRevenueError(err.response?.data?.error || 'Failed to fetch revenue data.');
+    } finally {
+      setRevenueLoading(false);
+    }
+  };
 
   // CSV Exporter for state-wise records
   const handleExportCSV = () => {
@@ -117,7 +92,7 @@ const Reports: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const isLoading = reportsLoading || (canReadPayments && ledgerLoading);
+  const isLoading = reportsLoading;
 
   return (
     <div className="space-y-6">
@@ -146,7 +121,7 @@ const Reports: React.FC = () => {
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
               {/* Card Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-4 gap-4">
-                <div className="flex items-center space-x-2.5">
+                <div className="flex items-center space-x-2.5 flex-1">
                   <TrendingUp className="w-5 h-5 text-emerald-400" />
                   <div>
                     <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">Revenue Analytics</h3>
@@ -154,12 +129,13 @@ const Reports: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Date Filter */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                {/* Date Filter Form */}
+                <form onSubmit={handleFetchRevenue} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                   <div className="flex items-center bg-slate-950/40 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300 w-full sm:w-auto justify-center">
                     <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0 mr-2" />
                     <input
                       type="date"
+                      required
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                       className="bg-transparent text-slate-200 font-semibold outline-none w-full sm:w-28 text-center cursor-pointer"
@@ -170,44 +146,76 @@ const Reports: React.FC = () => {
                     <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0 mr-2" />
                     <input
                       type="date"
+                      required
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       className="bg-transparent text-slate-200 font-semibold outline-none w-full sm:w-28 text-center cursor-pointer"
                     />
                   </div>
-                </div>
+                  <button
+                    type="submit"
+                    disabled={revenueLoading}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-md shadow-blue-600/10 transition-colors cursor-pointer shrink-0"
+                  >
+                    {revenueLoading ? 'Calculating...' : 'Calculate Revenue'}
+                  </button>
+                </form>
               </div>
 
-              {/* Revenue Displays Grid */}
-              <div className="space-y-4">
-                {/* Total Revenue Display */}
-                <div className="bg-slate-950/30 border border-slate-850 p-6 rounded-xl text-center space-y-2">
-                  <span className="text-xs text-slate-400 uppercase font-black tracking-wider block">Total Revenue</span>
-                  <div className="text-4xl font-black text-emerald-400">
-                    ₹{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                  <p className="text-xs text-slate-500 font-mono">
-                    Sum of all payments collected from {formatDate(startDate)} to {formatDate(endDate)}
+              {/* Revenue Displays or Placeholders */}
+              {revenueError && (
+                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded-xl text-center">
+                  {revenueError}
+                </div>
+              )}
+
+              {revenueLoading && (
+                <div className="text-center py-12 text-slate-500 font-bold text-xs">
+                  Querying database and totaling bookings for the selected period...
+                </div>
+              )}
+
+              {!revenueData && !revenueLoading && !revenueError && (
+                <div className="bg-slate-950/10 border border-dashed border-slate-800 p-8 rounded-xl text-center">
+                  <Calendar className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                  <span className="text-xs text-slate-450 uppercase font-semibold block tracking-wider">No Date Range Selected</span>
+                  <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                    Select a start and end date above and click <strong>Calculate Revenue</strong> to retrieve booking details and total prices.
                   </p>
                 </div>
+              )}
 
-                {/* Sub-breakdowns */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-slate-950/20 border border-slate-850/80 p-4 rounded-xl text-center space-y-1">
-                    <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Room Bookings Revenue</span>
-                    <div className="text-xl font-extrabold text-blue-400">
-                      ₹{roomRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {revenueData && !revenueLoading && (
+                <div className="space-y-4">
+                  {/* Total Revenue Display */}
+                  <div className="bg-slate-950/30 border border-slate-850 p-6 rounded-xl text-center space-y-2">
+                    <span className="text-xs text-slate-400 uppercase font-black tracking-wider block">Total Revenue</span>
+                    <div className="text-4xl font-black text-emerald-400">
+                      ₹{revenueData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
+                    <p className="text-xs text-slate-500 font-mono">
+                      Sum of room prices and additional charges for {revenueData.bookingsCount} booking(s) from {startDate ? formatDate(startDate) : ''} to {endDate ? formatDate(endDate) : ''}
+                    </p>
                   </div>
 
-                  <div className="bg-slate-950/20 border border-slate-850/80 p-4 rounded-xl text-center space-y-1">
-                    <span className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">Additional Items Revenue</span>
-                    <div className="text-xl font-extrabold text-indigo-400">
-                      ₹{additionalItemsRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {/* Sub-breakdowns */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-slate-950/20 border border-slate-850/80 p-4 rounded-xl text-center space-y-1">
+                      <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Room Bookings Revenue</span>
+                      <div className="text-xl font-extrabold text-blue-400">
+                        ₹{revenueData.roomRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-950/20 border border-slate-850/80 p-4 rounded-xl text-center space-y-1">
+                      <span className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">Additional Items Revenue</span>
+                      <div className="text-xl font-extrabold text-indigo-400">
+                        ₹{revenueData.additionalItemsRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl text-center">

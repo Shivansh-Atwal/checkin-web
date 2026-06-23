@@ -453,7 +453,7 @@ const CheckIn: React.FC = () => {
       advancePaid: Number(advancePaid),
       remainingAmount,
       paymentMethod,
-      registrationNumber: registrationNumber || undefined,
+      registrationNumber: registrationNumber || '',
       pricePerNight: Number(priceCost),
     };
 
