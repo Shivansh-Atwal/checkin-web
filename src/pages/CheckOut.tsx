@@ -100,6 +100,8 @@ const CheckOut: React.FC = () => {
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-ledger'] });
       setInvoiceUrl(res.data.data.checkout.invoiceUrl);
       setCheckoutResults(res.data.data.allCheckouts || [res.data.data.checkout]);
       setLoading(false);

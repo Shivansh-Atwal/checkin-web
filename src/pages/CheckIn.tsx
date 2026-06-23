@@ -381,8 +381,31 @@ const CheckIn: React.FC = () => {
         setBackImageUrl(doc.backImageUrl || '');
         setPhotoUrl(doc.customerPhotoUrl || '');
       }
+
+      if (b.registrationNumber) {
+        setRegistrationNumber(b.registrationNumber);
+      }
     }
   }, [bookingRes]);
+
+  useEffect(() => {
+    const fetchNextRegNumber = async () => {
+      try {
+        const res = await api.get('/bookings/next-reg');
+        if (res.data && res.data.success && res.data.data) {
+          setRegistrationNumber(res.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch next registration number:', err);
+      }
+    };
+
+    if (!bookingId) {
+      fetchNextRegNumber();
+    } else if (bookingRes?.data && !bookingRes.data.registrationNumber) {
+      fetchNextRegNumber();
+    }
+  }, [bookingId, bookingRes]);
 
   const [priceCost, setPriceCost] = useState(1000);
 
@@ -396,6 +419,8 @@ const CheckIn: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-ledger'] });
       navigate('/');
     },
     onError: (err: any) => {
@@ -501,6 +526,18 @@ const CheckIn: React.FC = () => {
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Registration Number */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-450 mb-1.5">Registration Number</label>
+            <input
+              type="text"
+              value={registrationNumber}
+              onChange={(e) => setRegistrationNumber(e.target.value)}
+              placeholder="e.g. REG-101 (Leave blank to auto-generate)"
+              className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-slate-650 outline-none transition-colors"
+            />
+          </div>
+
           {/* Guest Identity */}
           {!bookingId ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -970,19 +1007,7 @@ const CheckIn: React.FC = () => {
             </div>
           )}
 
-          {/* Custom Stay Registration Number */}
-          <div className="grid grid-cols-1 gap-4 border-t border-slate-800/60 pt-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Custom Registration Number (Optional)</label>
-              <input
-                type="text"
-                value={registrationNumber}
-                onChange={(e) => setRegistrationNumber(e.target.value)}
-                placeholder="e.g. REG-999 (Leave blank to auto-generate)"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-slate-650 outline-none transition-colors"
-              />
-            </div>
-          </div>
+
 
           {/* Arrival Date & Arrival Time */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">

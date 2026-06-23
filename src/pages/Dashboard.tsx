@@ -110,6 +110,8 @@ const Dashboard: React.FC = () => {
       // Invalidate queries to refresh details
       queryClient.invalidateQueries({ queryKey: ['room-details', selectedRoom?.id] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-ledger'] });
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to add charge.');
     } finally {
@@ -144,6 +146,8 @@ const Dashboard: React.FC = () => {
       setQuickAddRoomNum(null);
       // Invalidate queries to refresh rooms inventory
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-ledger'] });
       // If the selected room is the one we just added an item to, refresh its details too
       if (selectedRoom) {
         queryClient.invalidateQueries({ queryKey: ['room-details', selectedRoom.id] });

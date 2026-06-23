@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
-import { Plus, X, Search, Phone, Ban, Pencil, MapPin, Globe, History, BookmarkCheck } from 'lucide-react';
+import { Plus, X, Search, Phone, Ban, Pencil, MapPin, Globe, History, BookmarkCheck, Upload } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { formatDate } from '../utils/dateFormatter';
 
@@ -26,6 +26,13 @@ interface Booking {
     state?: string;
     country?: string; // Nationality
     pincode?: string;
+    documents?: Array<{
+      idType: string;
+      idNumber: string;
+      frontImageUrl?: string;
+      backImageUrl?: string;
+      customerPhotoUrl?: string;
+    }>;
   };
   room: {
     id: string;
@@ -34,6 +41,65 @@ interface Booking {
   };
   registrationNumber?: string;
 }
+
+const compressImage = (file: File, quality = 0.7, maxWidth = 1024, maxHeight = 1024): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      return resolve(file);
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return resolve(file);
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              return resolve(file);
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
 
 interface Room {
   id: string;
@@ -53,6 +119,46 @@ const Bookings: React.FC = () => {
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
+
+  // Document states
+  const [idType, setIdType] = useState('Aadhaar Card');
+  const [idNumber, setIdNumber] = useState('');
+  const [frontImageUrl, setFrontImageUrl] = useState('');
+  const [backImageUrl, setBackImageUrl] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [frontImageLoading, setFrontImageLoading] = useState(false);
+  const [backImageLoading, setBackImageLoading] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+
+  const handleFileUpload = async (
+    file: File,
+    type: 'documents' | 'customers',
+    setUrl: (url: string) => void,
+    setLoading: (load: boolean) => void
+  ) => {
+    setLoading(true);
+    try {
+      let fileToUpload = file;
+      if (file.type.startsWith('image/')) {
+        try {
+          fileToUpload = await compressImage(file, 0.7, 1024, 1024);
+        } catch (compressErr) {
+          console.error("Compression failed, uploading original image", compressErr);
+        }
+      }
+
+      const formData = new FormData();
+      formData.append('document', fileToUpload);
+      const res = await api.post(`/customers/upload?type=${type}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setUrl(res.data.data.fileUrl);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'File upload failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -85,6 +191,22 @@ const Bookings: React.FC = () => {
     setState(customer.state || '');
     setCountry(customer.country || '');
     setPincode(customer.pincode || '');
+
+    if (customer.documents && customer.documents.length > 0) {
+      const doc = customer.documents[0];
+      setIdType(doc.idType || 'Aadhaar Card');
+      setIdNumber(doc.idNumber || '');
+      setFrontImageUrl(doc.frontImageUrl || '');
+      setBackImageUrl(doc.backImageUrl || '');
+      setPhotoUrl(doc.customerPhotoUrl || '');
+    } else {
+      setIdType('Aadhaar Card');
+      setIdNumber('');
+      setFrontImageUrl('');
+      setBackImageUrl('');
+      setPhotoUrl('');
+    }
+
     setShowSuggestions(false);
     setSuggestions([]);
   };
@@ -125,6 +247,26 @@ const Bookings: React.FC = () => {
     }
   }, [location.state]);
 
+  React.useEffect(() => {
+    const fetchNextRegNumber = async () => {
+      try {
+        const res = await api.get('/bookings/next-reg');
+        if (res.data && res.data.success && res.data.data) {
+          setRegistrationNumber(res.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch next registration number:', err);
+      }
+    };
+    if (modalOpen) {
+      if (!editingBooking) {
+        fetchNextRegNumber();
+      } else if (editingBooking && !editingBooking.registrationNumber) {
+        fetchNextRegNumber();
+      }
+    }
+  }, [modalOpen, editingBooking]);
+
   // Fetch Bookings
   const { data: bookingsRes, isLoading } = useQuery({
     queryKey: ['bookings', searchQuery],
@@ -148,6 +290,8 @@ const Bookings: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-ledger'] });
       closeModal();
     },
     onError: (err: any) => {
@@ -163,6 +307,8 @@ const Bookings: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-ledger'] });
       closeModal();
     },
     onError: (err: any) => {
@@ -177,6 +323,8 @@ const Bookings: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-ledger'] });
     },
   });
 
@@ -201,6 +349,22 @@ const Bookings: React.FC = () => {
     setNotes(booking.notes || '');
     setStatus(booking.status);
     setRegistrationNumber(booking.registrationNumber || '');
+
+    if (booking.customer.documents && booking.customer.documents.length > 0) {
+      const doc = booking.customer.documents[0];
+      setIdType(doc.idType || 'Aadhaar Card');
+      setIdNumber(doc.idNumber || '');
+      setFrontImageUrl(doc.frontImageUrl || '');
+      setBackImageUrl(doc.backImageUrl || '');
+      setPhotoUrl(doc.customerPhotoUrl || '');
+    } else {
+      setIdType('Aadhaar Card');
+      setIdNumber('');
+      setFrontImageUrl('');
+      setBackImageUrl('');
+      setPhotoUrl('');
+    }
+
     setValidationError(null);
     setModalOpen(true);
   };
@@ -225,6 +389,11 @@ const Bookings: React.FC = () => {
     setNotes('');
     setStatus('CONFIRMED');
     setRegistrationNumber('');
+    setIdType('Aadhaar Card');
+    setIdNumber('');
+    setFrontImageUrl('');
+    setBackImageUrl('');
+    setPhotoUrl('');
     setValidationError(null);
   };
 
@@ -253,6 +422,13 @@ const Bookings: React.FC = () => {
       notes,
       status,
       registrationNumber: registrationNumber || undefined,
+      document: {
+        idType,
+        idNumber,
+        frontImageUrl: frontImageUrl || undefined,
+        backImageUrl: backImageUrl || undefined,
+        customerPhotoUrl: photoUrl || undefined,
+      },
     };
 
     if (editingBooking) {
@@ -409,7 +585,7 @@ const Bookings: React.FC = () => {
             <div key={booking.id} className="bg-slate-950/30 border border-slate-800 p-4 rounded-xl space-y-3">
               <div className="flex justify-between items-center">
                 <span className="font-mono font-bold text-blue-400 text-xs">
-                  {booking.bookingNumber}
+                  {booking.registrationNumber ? ` (${booking.registrationNumber})` : ''}
                 </span>
                 {getStatusBadge(booking.status)}
               </div>
@@ -560,6 +736,18 @@ const Bookings: React.FC = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Registration Number */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-450 mb-1.5">Registration Number</label>
+                <input
+                  type="text"
+                  value={registrationNumber}
+                  onChange={(e) => setRegistrationNumber(e.target.value)}
+                  placeholder="e.g. REG-101 (Leave blank to auto-generate)"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-slate-650 outline-none transition-colors"
+                />
+              </div>
+
               {/* Primary Guest Identity */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="relative">
@@ -715,19 +903,167 @@ const Bookings: React.FC = () => {
                 </div>
               </div>
 
-              {/* Stay Registration Number (Checked-in stays only) */}
-              {editingBooking && (status === 'CHECKED_IN' || status === 'CHECKED_OUT') && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Stay Registration Number</label>
-                  <input
-                    type="text"
-                    value={registrationNumber}
-                    onChange={(e) => setRegistrationNumber(e.target.value)}
-                    placeholder="Stay Registration Number (e.g. REG-101)"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
-                  />
+              {/* Document/Images upload */}
+              <div className="bg-slate-950/45 p-4 rounded-xl border border-slate-850 space-y-4">
+                <span className="text-[10px] font-bold text-slate-455 uppercase tracking-wider flex items-center">
+                  <BookmarkCheck className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                  ID Proof & Images
+                </span>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Document Type</label>
+                    <select
+                      value={idType}
+                      onChange={(e) => setIdType(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                    >
+                      <option value="Aadhaar Card">Aadhaar Card</option>
+                      <option value="Passport">Passport</option>
+                      <option value="Driving License">Driving License</option>
+                      <option value="Voter ID">Voter ID</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Number</label>
+                    <input
+                      type="text"
+                      value={idNumber}
+                      onChange={(e) => setIdNumber(e.target.value)}
+                      placeholder="e.g. 1234-5678-9012"
+                      className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                    />
+                  </div>
                 </div>
-              )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Front Image</label>
+                    <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-3 hover:border-slate-700 transition-colors">
+                      {frontImageUrl ? (
+                        <div className="w-full space-y-2 text-center">
+                          <img
+                            src={frontImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${frontImageUrl}` : frontImageUrl}
+                            alt="ID Front"
+                            className="h-20 mx-auto rounded-lg object-cover border border-slate-805"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFrontImageUrl('')}
+                            className="text-[10px] text-rose-400 hover:text-rose-355 transition-colors font-medium cursor-pointer"
+                          >
+                            Remove Image
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-full text-center py-2 flex flex-col items-center justify-center space-y-2">
+                          <span className="text-[10px] text-slate-400 block font-medium">
+                            {frontImageLoading ? 'Uploading...' : 'Select Front ID Image'}
+                          </span>
+                          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-colors">
+                            <Upload className="w-3 h-3 text-blue-500" />
+                            <span>Upload File</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  handleFileUpload(e.target.files[0], 'documents', setFrontImageUrl, setFrontImageLoading);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Back Image</label>
+                    <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-3 hover:border-slate-700 transition-colors">
+                      {backImageUrl ? (
+                        <div className="w-full space-y-2 text-center">
+                          <img
+                            src={backImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${backImageUrl}` : backImageUrl}
+                            alt="ID Back"
+                            className="h-20 mx-auto rounded-lg object-cover border border-slate-805"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setBackImageUrl('')}
+                            className="text-[10px] text-rose-400 hover:text-rose-355 transition-colors font-medium cursor-pointer"
+                          >
+                            Remove Image
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-full text-center py-2 flex flex-col items-center justify-center space-y-2">
+                          <span className="text-[10px] text-slate-400 block font-medium">
+                            {backImageLoading ? 'Uploading...' : 'Select Back ID Image'}
+                          </span>
+                          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-colors">
+                            <Upload className="w-3 h-3 text-blue-500" />
+                            <span>Upload File</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  handleFileUpload(e.target.files[0], 'documents', setBackImageUrl, setBackImageLoading);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-450 mb-1">Customer Photo (Passport Size)</label>
+                  <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-3 hover:border-slate-700 transition-colors">
+                    {photoUrl ? (
+                      <div className="w-full space-y-2 text-center flex flex-col items-center">
+                        <img
+                          src={photoUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${photoUrl}` : photoUrl}
+                          alt="Customer Photo"
+                          className="h-20 w-20 rounded-full object-cover border border-slate-805"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPhotoUrl('')}
+                          className="text-[10px] text-rose-400 hover:text-rose-355 transition-colors font-medium cursor-pointer"
+                        >
+                          Remove Photo
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-full text-center py-2 flex flex-col items-center justify-center space-y-2">
+                        <span className="text-[10px] text-slate-400 block font-medium">
+                          {photoLoading ? 'Uploading...' : 'Select Customer Photo'}
+                        </span>
+                        <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-colors">
+                          <Upload className="w-3 h-3 text-blue-500" />
+                          <span>Upload File</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                handleFileUpload(e.target.files[0], 'customers', setPhotoUrl, setPhotoLoading);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               {/* Booking dates */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

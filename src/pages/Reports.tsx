@@ -13,6 +13,7 @@ interface StateWiseSummary {
 
 interface ReportsData {
   stateWiseData: StateWiseSummary[];
+  detailedRecords?: any[];
 }
 
 interface CheckoutRecord {
@@ -64,38 +65,36 @@ const Reports: React.FC = () => {
 
   const paymentsList: PaymentLedgerItem[] = ledgerRes?.data || [];
 
-  // Filter payments by date range
-  const filteredPayments = React.useMemo(() => {
-    if (!paymentsList.length) return [];
-    
-    // Normalize date filters to midnight local times for inclusive comparison
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T23:59:59.999`);
-    
-    return paymentsList.filter((item) => {
-      const pDate = new Date(item.paymentDate);
-      return pDate >= start && pDate <= end;
-    });
-  }, [paymentsList, startDate, endDate]);
-
   // Compute total revenue and breakdown
   const { totalRevenue, additionalItemsRevenue, roomRevenue } = React.useMemo(() => {
-    let total = 0;
-    let additional = 0;
-    
-    filteredPayments.forEach((p) => {
-      total += p.amount;
-      if (p.paymentType === 'FULL' && p.checkIn?.checkoutRecord) {
-        additional += p.checkIn.checkoutRecord.additionalCharges || 0;
+    let roomRev = 0;
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T23:59:59.999`);
+
+    const detailedList: any[] = reportsRes?.data?.detailedRecords || [];
+    detailedList.forEach((ci) => {
+      const ciDate = new Date(ci.checkInTime);
+      if (ciDate >= start && ciDate <= end) {
+        roomRev += (ci.roomPrice || 0) * (ci.bednights || 0);
       }
     });
-    
+
+    let additional = 0;
+    paymentsList.forEach((p) => {
+      const pDate = new Date(p.paymentDate);
+      if (pDate >= start && pDate <= end) {
+        if (p.paymentType === 'FULL' && p.checkIn?.checkoutRecord) {
+          additional += p.checkIn.checkoutRecord.additionalCharges || 0;
+        }
+      }
+    });
+
     return {
-      totalRevenue: total,
+      totalRevenue: roomRev + additional,
       additionalItemsRevenue: additional,
-      roomRevenue: total - additional,
+      roomRevenue: roomRev,
     };
-  }, [filteredPayments]);
+  }, [reportsRes, paymentsList, startDate, endDate]);
 
   // CSV Exporter for state-wise records
   const handleExportCSV = () => {
