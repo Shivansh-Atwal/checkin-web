@@ -87,9 +87,9 @@ const Login: React.FC = () => {
         {/* Glow */}
         <div className="absolute -top-12 -left-12 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl" />
 
-        <div className="text-center mb-6">
-          <h2 className="text-3xl font-extrabold tracking-tight text-white font-mono">HotelFlow</h2>
-          <p className="text-sm text-slate-400 mt-2">Enterprise Multi-Tenant Stay & Booking System</p>
+        <div className="text-center mb-6 flex flex-col items-center">
+          <img src="/logo.png" alt="HotelFlow Logo" className="h-16 w-auto object-contain mb-3" />
+          <p className="text-sm text-slate-400">Enterprise Multi-Tenant Stay & Booking System</p>
         </div>
 
         {/* Tab Switcher */}

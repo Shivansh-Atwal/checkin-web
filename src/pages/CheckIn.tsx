@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../utils/api';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckSquare, Clock, Calendar, ShieldAlert, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckSquare, Clock, Calendar, ShieldAlert, Loader2, Camera, Upload, X, RotateCw } from 'lucide-react';
 
 interface Room {
   id: string;
@@ -166,6 +166,132 @@ const CheckIn: React.FC = () => {
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState('');
 
+  // Camera Modal states
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [cameraActiveTarget, setCameraActiveTarget] = useState<{
+    type: 'documents' | 'customers';
+    setUrl: (url: string) => void;
+    setLoading: (load: boolean) => void;
+    label: string;
+  } | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Clean up camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  const startCamera = async (deviceId?: string) => {
+    setCameraError(null);
+    setCapturedPhoto(null);
+
+    // Stop existing stream first
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+    }
+
+    try {
+      const constraints: MediaStreamConstraints = {
+        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
+      // Enumerate other camera devices
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevs = devices.filter((d) => d.kind === 'videoinput');
+      setCameraDevices(videoDevs);
+
+      if (!deviceId && stream.getVideoTracks().length > 0) {
+        const activeTrack = stream.getVideoTracks()[0];
+        const activeSettings = activeTrack.getSettings();
+        if (activeSettings.deviceId) {
+          setSelectedCameraId(activeSettings.deviceId);
+        }
+      } else if (deviceId) {
+        setSelectedCameraId(deviceId);
+      }
+    } catch (err: any) {
+      console.error('Error starting camera stream:', err);
+      setCameraError('Could not open camera. Please verify device permissions.');
+    }
+  };
+
+  const openCamera = (
+    type: 'documents' | 'customers',
+    setUrl: (url: string) => void,
+    setLoading: (load: boolean) => void,
+    label: string
+  ) => {
+    setCameraActiveTarget({ type, setUrl, setLoading, label });
+    setCameraOpen(true);
+    setTimeout(() => {
+      startCamera();
+    }, 150);
+  };
+
+  const closeCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+    }
+    setCameraStream(null);
+    setCameraOpen(false);
+    setCameraActiveTarget(null);
+    setCapturedPhoto(null);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      if (context) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setCapturedPhoto(dataUrl);
+      }
+    }
+  };
+
+  const savePhoto = async () => {
+    if (capturedPhoto && cameraActiveTarget) {
+      try {
+        const response = await fetch(capturedPhoto);
+        const blob = await response.blob();
+        const file = new File([blob], `${cameraActiveTarget.label.replace(/\s+/g, '_')}_captured.jpg`, {
+          type: 'image/jpeg',
+        });
+        handleFileUpload(file, cameraActiveTarget.type, cameraActiveTarget.setUrl, cameraActiveTarget.setLoading);
+        closeCamera();
+      } catch (err) {
+        console.error('Error processing captured photo:', err);
+        alert('Failed to process captured image.');
+      }
+    }
+  };
+
+  const switchCamera = (deviceId: string) => {
+    setSelectedCameraId(deviceId);
+    startCamera(deviceId);
+  };
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,6 +364,23 @@ const CheckIn: React.FC = () => {
       setNumberOfGuests(b.numberOfGuests);
       setPriceCost(b.price);
       setAdvancePaid(0); // Additional paid on arrival
+
+      // Prefill address details if they exist
+      setAddress(b.customer.address || '');
+      setCity(b.customer.city || '');
+      setState(b.customer.state || '');
+      setCountry(b.customer.country || '');
+      setPincode(b.customer.pincode || '');
+
+      // Prefill document details if they exist
+      if (b.customer.documents && b.customer.documents.length > 0) {
+        const doc = b.customer.documents[0];
+        setIdType(doc.idType || 'Aadhaar Card');
+        setIdNumber(doc.idNumber || '');
+        setFrontImageUrl(doc.frontImageUrl || '');
+        setBackImageUrl(doc.backImageUrl || '');
+        setPhotoUrl(doc.customerPhotoUrl || '');
+      }
     }
   }, [bookingRes]);
 
@@ -295,6 +438,19 @@ const CheckIn: React.FC = () => {
 
     if (bookingId) {
       payload.bookingId = bookingId;
+      // Send document and address details for pre-existing booking arrivals too
+      payload.address = address;
+      payload.city = city;
+      payload.state = state;
+      payload.country = country;
+      payload.pincode = pincode;
+      payload.document = {
+        idType,
+        idNumber,
+        frontImageUrl: frontImageUrl || undefined,
+        backImageUrl: backImageUrl || undefined,
+        customerPhotoUrl: photoUrl || undefined,
+      };
     } else {
       if (customerId) {
         payload.customerId = customerId;
@@ -347,210 +503,220 @@ const CheckIn: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Guest Identity */}
           {!bookingId ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Guest Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={customerName}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setCustomerName(val);
-                      setCustomerId(null);
-                      fetchSuggestions(val, 'name');
-                    }}
-                    onBlur={() => setShowSuggestions(false)}
-                    placeholder="e.g. Samuel L. Jackson"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                  />
-                  {showSuggestions && suggestionField === 'name' && suggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
-                      {suggestions.map((cust) => (
-                        <div
-                          key={cust.id}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleSelectCustomer(cust);
-                          }}
-                          className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
-                        >
-                          <div className="flex justify-between items-start">
-                            <p className="font-semibold text-white text-xs">{cust.fullName}</p>
-                            <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
-                          </div>
-                          <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
-                            <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
-                            {cust.documents && cust.documents.length > 0 && (
-                              <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
-                                {cust.documents[0].idType}: {cust.documents[0].idNumber}
-                              </span>
-                            )}
-                          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="relative">
+                <label className="block text-xs font-semibold text-slate-450 mb-1.5">Guest Name</label>
+                <input
+                  type="text"
+                  required
+                  value={customerName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomerName(val);
+                    setCustomerId(null);
+                    fetchSuggestions(val, 'name');
+                  }}
+                  onBlur={() => setShowSuggestions(false)}
+                  placeholder="e.g. Samuel L. Jackson"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                />
+                {showSuggestions && suggestionField === 'name' && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
+                    {suggestions.map((cust) => (
+                      <div
+                        key={cust.id}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleSelectCustomer(cust);
+                        }}
+                        className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
+                      >
+                        <div className="flex justify-between items-start">
+                          <p className="font-semibold text-white text-xs">{cust.fullName}</p>
+                          <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="relative">
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Mobile Number</label>
-                  <input
-                    type="tel"
-                    required
-                    value={mobileNumber}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setMobileNumber(val);
-                      setCustomerId(null);
-                      fetchSuggestions(val, 'mobile');
-                    }}
-                    onBlur={() => setShowSuggestions(false)}
-                    placeholder="e.g. 9876543210"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                  />
-                  {showSuggestions && suggestionField === 'mobile' && suggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
-                      {suggestions.map((cust) => (
-                        <div
-                          key={cust.id}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleSelectCustomer(cust);
-                          }}
-                          className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
-                        >
-                          <div className="flex justify-between items-start">
-                            <p className="font-semibold text-white text-xs">{cust.fullName}</p>
-                            <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
-                          </div>
-                          <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
-                            <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
-                            {cust.documents && cust.documents.length > 0 && (
-                              <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
-                                {cust.documents[0].idType}: {cust.documents[0].idNumber}
-                              </span>
-                            )}
-                          </div>
+                        <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
+                          <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
+                          {cust.documents && cust.documents.length > 0 && (
+                            <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
+                              {cust.documents[0].idType}: {cust.documents[0].idNumber}
+                            </span>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Customer Address Details */}
-              <div className="border-t border-slate-800/60 pt-4 space-y-4">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Address Details</h4>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Street Address</label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="e.g. 123 Main St, Apartment 4B"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">City</label>
-                    <input
-                      type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. New York"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">State</label>
-                    <input
-                      type="text"
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      placeholder="e.g. NY"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Pincode / Zip Code</label>
-                    <input
-                      type="text"
-                      value={pincode}
-                      onChange={(e) => setPincode(e.target.value)}
-                      placeholder="e.g. 10001"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Nationality</label>
-                    <input
-                      type="text"
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      placeholder="e.g. Indian"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ID upload inputs */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Government ID Type</label>
-                  <select
-                    value={idType}
-                    onChange={(e) => setIdType(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                  >
-                    <option value="Aadhaar Card">Aadhaar Card</option>
-                    <option value="Passport">Passport</option>
-                    <option value="Driving License">Driving License</option>
-                    <option value="Voter ID">Voter ID</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">ID Number</label>
-                  <input
-                    type="text"
-                    required
-                    value={idNumber}
-                    onChange={(e) => setIdNumber(e.target.value)}
-                    placeholder="Document reference number"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Government ID Image Uploads */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">ID Front Image</label>
-                  <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-4 hover:border-slate-700 transition-colors">
-                    {frontImageUrl ? (
-                      <div className="w-full space-y-2 text-center">
-                        <img
-                          src={frontImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${frontImageUrl}` : frontImageUrl}
-                          alt="ID Front"
-                          className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFrontImageUrl('')}
-                          className="text-xs text-rose-400 hover:text-rose-350 transition-colors font-medium"
-                        >
-                          Remove Image
-                        </button>
                       </div>
-                    ) : (
-                      <label className="w-full cursor-pointer text-center py-4">
-                        <span className="text-xs text-slate-400 block font-medium">
-                          {frontImageLoading ? 'Uploading Front Image...' : 'Click to Upload Front'}
-                        </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <label className="block text-xs font-semibold text-slate-450 mb-1.5">Mobile Number</label>
+                <input
+                  type="tel"
+                  required
+                  value={mobileNumber}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMobileNumber(val);
+                    setCustomerId(null);
+                    fetchSuggestions(val, 'mobile');
+                  }}
+                  onBlur={() => setShowSuggestions(false)}
+                  placeholder="e.g. 9876543210"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                />
+                {showSuggestions && suggestionField === 'mobile' && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
+                    {suggestions.map((cust) => (
+                      <div
+                        key={cust.id}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleSelectCustomer(cust);
+                        }}
+                        className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
+                      >
+                        <div className="flex justify-between items-start">
+                          <p className="font-semibold text-white text-xs">{cust.fullName}</p>
+                          <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
+                        </div>
+                        <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
+                          <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
+                          {cust.documents && cust.documents.length > 0 && (
+                            <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
+                              {cust.documents[0].idType}: {cust.documents[0].idNumber}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-slate-950/40 p-4 border border-slate-800 rounded-xl text-sm space-y-1">
+              <span className="text-xs text-slate-500">Reserved Guest Profile</span>
+              <p className="font-semibold text-white">{customerName}</p>
+              <p className="text-xs text-slate-400">{mobileNumber}</p>
+            </div>
+          )}
+
+          {/* Customer Address Details */}
+          <div className="border-t border-slate-800/60 pt-4 space-y-4">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Address Details</h4>
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Street Address</label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="e.g. 123 Main St, Apartment 4B"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-450 mb-1.5">City</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="e.g. New York"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-450 mb-1.5">State</label>
+                <input
+                  type="text"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="e.g. NY"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-450 mb-1.5">Pincode / Zip Code</label>
+                <input
+                  type="text"
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value)}
+                  placeholder="e.g. 10001"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-450 mb-1.5">Nationality</label>
+                <input
+                  type="text"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="e.g. Indian"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ID upload inputs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Government ID Type</label>
+              <select
+                value={idType}
+                onChange={(e) => setIdType(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              >
+                <option value="Aadhaar Card">Aadhaar Card</option>
+                <option value="Passport">Passport</option>
+                <option value="Driving License">Driving License</option>
+                <option value="Voter ID">Voter ID</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">ID Number</label>
+              <input
+                type="text"
+                required
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value)}
+                placeholder="Document reference number"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Government ID Image Uploads */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">ID Front Image</label>
+              <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-4 hover:border-slate-700 transition-colors">
+                {frontImageUrl ? (
+                  <div className="w-full space-y-2 text-center">
+                    <img
+                      src={frontImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${frontImageUrl}` : frontImageUrl}
+                      alt="ID Front"
+                      className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFrontImageUrl('')}
+                      className="text-xs text-rose-400 hover:text-rose-350 transition-colors font-medium"
+                    >
+                      Remove Image
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full text-center py-4 flex flex-col items-center justify-center space-y-3">
+                    <span className="text-xs text-slate-400 block font-medium">
+                      {frontImageLoading ? 'Uploading Front Image...' : 'Select Source for Front ID'}
+                    </span>
+                    <div className="flex items-center gap-2.5">
+                      <label className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-xl text-xs font-semibold text-white cursor-pointer transition-colors">
+                        <Upload className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Gallery</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -562,32 +728,46 @@ const CheckIn: React.FC = () => {
                           }}
                         />
                       </label>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => openCamera('documents', setFrontImageUrl, setFrontImageLoading, 'ID Front Image')}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-xl text-xs font-semibold text-white cursor-pointer transition-colors"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Camera</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">ID Back Image</label>
-                  <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-4 hover:border-slate-700 transition-colors">
-                    {backImageUrl ? (
-                      <div className="w-full space-y-2 text-center">
-                        <img
-                          src={backImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${backImageUrl}` : backImageUrl}
-                          alt="ID Back"
-                          className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setBackImageUrl('')}
-                          className="text-xs text-rose-400 hover:text-rose-350 transition-colors font-medium"
-                        >
-                          Remove Image
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="w-full cursor-pointer text-center py-4">
-                        <span className="text-xs text-slate-400 block font-medium">
-                          {backImageLoading ? 'Uploading Back Image...' : 'Click to Upload Back'}
-                        </span>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">ID Back Image</label>
+              <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-4 hover:border-slate-700 transition-colors">
+                {backImageUrl ? (
+                  <div className="w-full space-y-2 text-center">
+                    <img
+                      src={backImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${backImageUrl}` : backImageUrl}
+                      alt="ID Back"
+                      className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setBackImageUrl('')}
+                      className="text-xs text-rose-400 hover:text-rose-350 transition-colors font-medium"
+                    >
+                      Remove Image
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full text-center py-4 flex flex-col items-center justify-center space-y-3">
+                    <span className="text-xs text-slate-400 block font-medium">
+                      {backImageLoading ? 'Uploading Back Image...' : 'Select Source for Back ID'}
+                    </span>
+                    <div className="flex items-center gap-2.5">
+                      <label className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-xl text-xs font-semibold text-white cursor-pointer transition-colors">
+                        <Upload className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Gallery</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -599,36 +779,50 @@ const CheckIn: React.FC = () => {
                           }}
                         />
                       </label>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => openCamera('documents', setBackImageUrl, setBackImageLoading, 'ID Back Image')}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-xl text-xs font-semibold text-white cursor-pointer transition-colors"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Camera</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
+            </div>
+          </div>
 
-              {/* Passport Photo Upload */}
-              <div className="grid grid-cols-1 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Customer Photo (Passport Size)</label>
-                  <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-4 hover:border-slate-700 transition-colors">
-                    {photoUrl ? (
-                      <div className="w-full space-y-2 text-center">
-                        <img
-                          src={photoUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${photoUrl}` : photoUrl}
-                          alt="Customer Photo"
-                          className="h-28 w-28 mx-auto rounded-full object-cover border border-slate-800"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setPhotoUrl('')}
-                          className="text-xs text-rose-400 hover:text-rose-350 transition-colors font-medium block mx-auto"
-                        >
-                          Remove Photo
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="w-full cursor-pointer text-center py-4">
-                        <span className="text-xs text-slate-400 block font-medium">
-                          {photoLoading ? 'Uploading Photo...' : 'Click to Upload Passport Photo'}
-                        </span>
+          {/* Passport Photo Upload */}
+          <div className="grid grid-cols-1 gap-4 pt-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Customer Photo (Passport Size)</label>
+              <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-4 hover:border-slate-700 transition-colors">
+                {photoUrl ? (
+                  <div className="w-full space-y-2 text-center">
+                    <img
+                      src={photoUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${photoUrl}` : photoUrl}
+                      alt="Customer Photo"
+                      className="h-28 w-28 mx-auto rounded-full object-cover border border-slate-800"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPhotoUrl('')}
+                      className="text-xs text-rose-400 hover:text-rose-350 transition-colors font-medium block mx-auto"
+                    >
+                      Remove Photo
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full text-center py-4 flex flex-col items-center justify-center space-y-3">
+                    <span className="text-xs text-slate-400 block font-medium">
+                      {photoLoading ? 'Uploading Photo...' : 'Select Source for Customer Photo'}
+                    </span>
+                    <div className="flex items-center gap-2.5">
+                      <label className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-xl text-xs font-semibold text-white cursor-pointer transition-colors">
+                        <Upload className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Gallery</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -640,18 +834,20 @@ const CheckIn: React.FC = () => {
                           }}
                         />
                       </label>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => openCamera('customers', setPhotoUrl, setPhotoLoading, 'Customer Photo')}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-xl text-xs font-semibold text-white cursor-pointer transition-colors"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Camera</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
-            </>
-          ) : (
-            <div className="bg-slate-950/40 p-4 border border-slate-800 rounded-xl text-sm space-y-1">
-              <span className="text-xs text-slate-500">Reserved Guest Profile</span>
-              <p className="font-semibold text-white">{customerName}</p>
-              <p className="text-xs text-slate-400">{mobileNumber}</p>
             </div>
-          )}
+          </div>
 
           {/* Allocation details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
@@ -869,10 +1065,134 @@ const CheckIn: React.FC = () => {
               ) : (
                 'Confirm Arrival & Check-In'
               )}
-            </button>
+          </button>
+        </div>
+      </form>
+    </div>
+
+      {/* Camera Capture Modal */}
+      {cameraOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/50">
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-blue-500" />
+                  Capture {cameraActiveTarget?.label || 'Image'}
+                </h4>
+                <p className="text-[10px] text-slate-400 mt-0.5">Position the image inside the frame</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Video / Preview Body */}
+            <div className="relative aspect-[4/3] bg-slate-950 flex items-center justify-center overflow-hidden border-b border-slate-800">
+              {cameraError ? (
+                <div className="p-6 text-center space-y-2">
+                  <p className="text-sm text-rose-400 font-semibold">{cameraError}</p>
+                  <button
+                    type="button"
+                    onClick={() => startCamera(selectedCameraId)}
+                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white rounded-lg transition-colors cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : capturedPhoto ? (
+                <img
+                  src={capturedPhoto}
+                  alt="Captured Preview"
+                  className="w-full h-full object-cover animate-fade-in"
+                />
+              ) : (
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Camera toggle Overlay if multiple devices exist */}
+                  {cameraDevices.length > 1 && (
+                    <div className="absolute top-3 right-3 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-800 flex items-center gap-1.5">
+                      <RotateCw className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
+                      <select
+                        value={selectedCameraId}
+                        onChange={(e) => switchCamera(e.target.value)}
+                        className="bg-transparent text-[11px] text-white font-semibold outline-none cursor-pointer border-none py-0.5"
+                      >
+                        {cameraDevices.map((device, idx) => (
+                          <option key={device.deviceId} value={device.deviceId} className="bg-slate-900 text-white text-xs">
+                            {device.label || `Camera ${idx + 1}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {/* Stream Starting Indicator */}
+                  {!cameraStream && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/90 gap-2">
+                      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                      <span className="text-xs text-slate-400">Initializing Camera...</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Actions Footer */}
+            <div className="p-4 bg-slate-900/50 flex items-center justify-end gap-2.5">
+              {capturedPhoto ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCapturedPhoto(null)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white rounded-xl transition-colors cursor-pointer"
+                  >
+                    Retake Photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={savePhoto}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-xl shadow-lg shadow-emerald-600/10 transition-colors cursor-pointer"
+                  >
+                    Use Photo
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={closeCamera}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-350 hover:text-white rounded-xl transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={capturePhoto}
+                    disabled={!cameraStream}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none text-xs font-semibold text-white rounded-xl shadow-lg shadow-blue-500/10 transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    Capture
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
+      {/* Hidden canvas for video captures */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };
