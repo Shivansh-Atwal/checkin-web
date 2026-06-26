@@ -20,6 +20,7 @@ interface StayRecord {
   roomPrice: number;
   numberOfGuests: number;
   bednights: number;
+  registrationNumber?: string;
 }
 
 interface ReportsData {
@@ -203,6 +204,11 @@ const Records: React.FC = () => {
                       <div>
                         <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Room Number</span>
                         <h4 className="text-xl font-black text-blue-400 font-mono">Room {ci.roomNumber}</h4>
+                        {ci.registrationNumber && ci.registrationNumber !== 'N/A' && (
+                          <span className="text-[10px] font-mono font-bold text-emerald-400 mt-0.5 block">
+                            Reg: {ci.registrationNumber}
+                          </span>
+                        )}
                       </div>
                       <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold border ${
                         ci.status === 'ACTIVE'
@@ -237,8 +243,8 @@ const Records: React.FC = () => {
                         </div>
                       )}
                       <div>
-                        <span className="text-[9px] uppercase font-bold text-slate-550 block">Nights</span>
-                        <span className="text-xs font-bold text-indigo-400 font-mono">{ci.bednights} nights</span>
+                        <span className="text-[9px] uppercase font-bold text-slate-550 block">Bednights</span>
+                        <span className="text-xs font-bold text-indigo-400 font-mono">{ci.bednights} bednights</span>
                       </div>
                       <div>
                         <span className="text-[9px] uppercase font-bold text-slate-555 block">Guests</span>

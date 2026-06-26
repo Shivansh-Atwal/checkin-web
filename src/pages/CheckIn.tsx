@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../utils/api';
+import api, { getBackendUrl } from '../utils/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckSquare, Clock, Calendar, ShieldAlert, Loader2, Camera, Upload, X, RotateCw } from 'lucide-react';
+import citiesData from '../utils/cities.json';
+
+const indianStates = Array.from(new Set(citiesData.map((c: any) => c.state))).sort();
 
 interface Room {
   id: string;
@@ -154,6 +157,21 @@ const CheckIn: React.FC = () => {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
+
+  const filteredCities = React.useMemo(() => {
+    if (!state) {
+      return Array.from(new Set(citiesData.map((c: any) => c.name))).sort();
+    }
+    const stateNormalized = state.trim().toLowerCase();
+    return Array.from(
+      new Set(
+        citiesData
+          .filter((c: any) => c.state.toLowerCase() === stateNormalized)
+          .map((c: any) => c.name)
+      )
+    ).sort();
+  }, [state]);
+
   const [country, setCountry] = useState(''); // Nationality
   const [pincode, setPincode] = useState('');
   const [registrationNumber, setRegistrationNumber] = useState('');
@@ -656,21 +674,40 @@ const CheckIn: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-450 mb-1.5">City</label>
                 <input
                   type="text"
+                  list="cities-datalist-checkin"
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="e.g. New York"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCity(val);
+                    const found = citiesData.find(c => c.name.toLowerCase() === val.trim().toLowerCase());
+                    if (found) {
+                      setState(found.state);
+                    }
+                  }}
+                  placeholder="e.g. Mumbai"
                   className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
                 />
+                <datalist id="cities-datalist-checkin">
+                  {filteredCities.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-450 mb-1.5">State</label>
                 <input
                   type="text"
+                  list="states-datalist-checkin"
                   value={state}
                   onChange={(e) => setState(e.target.value)}
-                  placeholder="e.g. NY"
+                  placeholder="e.g. Maharashtra"
                   className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
                 />
+                <datalist id="states-datalist-checkin">
+                  {indianStates.map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -733,7 +770,7 @@ const CheckIn: React.FC = () => {
                 {frontImageUrl ? (
                   <div className="w-full space-y-2 text-center">
                     <img
-                      src={frontImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${frontImageUrl}` : frontImageUrl}
+                      src={frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl}
                       alt="ID Front"
                       className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
                     />
@@ -784,7 +821,7 @@ const CheckIn: React.FC = () => {
                 {backImageUrl ? (
                   <div className="w-full space-y-2 text-center">
                     <img
-                      src={backImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${backImageUrl}` : backImageUrl}
+                      src={backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl}
                       alt="ID Back"
                       className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
                     />
@@ -839,7 +876,7 @@ const CheckIn: React.FC = () => {
                 {photoUrl ? (
                   <div className="w-full space-y-2 text-center">
                     <img
-                      src={photoUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${photoUrl}` : photoUrl}
+                      src={photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl}
                       alt="Customer Photo"
                       className="h-28 w-28 mx-auto rounded-full object-cover border border-slate-800"
                     />

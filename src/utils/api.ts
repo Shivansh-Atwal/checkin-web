@@ -1,8 +1,27 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
+export const getBackendUrl = (): string => {
+  const envApiUrl = import.meta.env.VITE_API_URL || 'https://checkin-backend-70km.onrender.com/api';
+  if (typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname;
+    if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      try {
+        const url = new URL(envApiUrl);
+        if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+          url.hostname = hostname;
+        }
+        return url.origin;
+      } catch (e) {
+        console.error('Failed to parse VITE_API_URL:', e);
+      }
+    }
+  }
+  return envApiUrl.replace(/\/api$/, '').replace(/\/api\/$/, '');
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || `https://checkin-backend-70km.onrender.com/api`,
+  baseURL: `${getBackendUrl()}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -40,7 +59,7 @@ api.interceptors.request.use(
               refreshPromise = (async () => {
                 try {
                   const tenantId = localStorage.getItem('tenantId') || 'public';
-                  const refreshUrl = `${import.meta.env.VITE_API_URL || 'https://checkin-backend-70km.onrender.com/api'}/auth/refresh`;
+                  const refreshUrl = `${getBackendUrl()}/api/auth/refresh`;
                   const res = await axios.post(refreshUrl, { refreshToken }, {
                     headers: { 'X-Tenant-Id': tenantId }
                   });
@@ -126,7 +145,7 @@ api.interceptors.response.use(
       if (refreshToken) {
         try {
           const tenantId = localStorage.getItem('tenantId') || 'public';
-          const refreshUrl = `${import.meta.env.VITE_API_URL || 'https://checkin-backend-70km.onrender.com/api'}/auth/refresh`;
+          const refreshUrl = `${getBackendUrl()}/api/auth/refresh`;
           const res = await axios.post(refreshUrl, { refreshToken }, {
             headers: { 'X-Tenant-Id': tenantId }
           });

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../utils/api';
+import api, { getBackendUrl } from '../utils/api';
 import { useAuthStore } from '../store/authStore';
-import { Plus, X, Search, Phone, Ban, Pencil, MapPin, Globe, History, BookmarkCheck, Upload } from 'lucide-react';
+import { Plus, X, Search, Phone, Ban, Pencil, MapPin, Globe, History, BookmarkCheck, Upload, FileText } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { formatDate } from '../utils/dateFormatter';
+import citiesData from '../utils/cities.json';
+
+const indianStates = Array.from(new Set(citiesData.map((c: any) => c.state))).sort();
 
 interface Booking {
   id: string;
@@ -214,6 +217,21 @@ const Bookings: React.FC = () => {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
+
+  const filteredCities = React.useMemo(() => {
+    if (!state) {
+      return Array.from(new Set(citiesData.map((c: any) => c.name))).sort();
+    }
+    const stateNormalized = state.trim().toLowerCase();
+    return Array.from(
+      new Set(
+        citiesData
+          .filter((c: any) => c.state.toLowerCase() === stateNormalized)
+          .map((c: any) => c.name)
+      )
+    ).sort();
+  }, [state]);
+
   const [country, setCountry] = useState('');
   const [pincode, setPincode] = useState('');
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
@@ -457,6 +475,298 @@ const Bookings: React.FC = () => {
     }
   };
 
+  const handlePreviewPDF = (booking: Booking) => {
+    const doc = booking.customer.documents?.[0];
+    if (!doc) {
+      alert("No documents uploaded for this guest.");
+      return;
+    }
+
+    const formatImgUrl = (url?: string) => {
+      if (!url) return '';
+      return url.startsWith('/')
+        ? `${getBackendUrl()}${url}`
+        : url;
+    };
+
+    const photo = formatImgUrl(doc.customerPhotoUrl);
+    const front = formatImgUrl(doc.frontImageUrl);
+    const back = formatImgUrl(doc.backImageUrl);
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Please allow popups to preview the document.");
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Guest Dossier - ${booking.customer.fullName}</title>
+          <style>
+            body {
+              font-family: 'Inter', sans-serif;
+              color: #1e293b;
+              background-color: #ffffff;
+              margin: 40px;
+              padding: 0;
+            }
+            .header {
+              border-bottom: 2px solid #e2e8f0;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .title {
+              font-size: 24px;
+              font-weight: 800;
+              color: #1e3a8a;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .subtitle {
+              font-size: 12px;
+              color: #64748b;
+              margin-top: 5px;
+            }
+            .metadata-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 20px;
+              margin-bottom: 40px;
+              background-color: #f8fafc;
+              padding: 20px;
+              border-radius: 12px;
+              border: 1px solid #e2e8f0;
+            }
+            .metadata-item {
+              font-size: 14px;
+            }
+            .metadata-label {
+              font-weight: 700;
+              color: #475569;
+              text-transform: uppercase;
+              font-size: 11px;
+              letter-spacing: 0.5px;
+              margin-bottom: 4px;
+            }
+            .metadata-value {
+              font-weight: 600;
+              color: #0f172a;
+            }
+            .section-title {
+              font-size: 16px;
+              font-weight: 800;
+              color: #1e3a8a;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 8px;
+              margin-top: 30px;
+              margin-bottom: 20px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .images-container {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 20px;
+            }
+            .image-card {
+              border: 1px solid #cbd5e1;
+              border-radius: 8px;
+              padding: 10px;
+              background-color: #f8fafc;
+              text-align: center;
+            }
+            .image-title {
+              font-size: 12px;
+              font-weight: 700;
+              color: #475569;
+              margin-bottom: 8px;
+            }
+            .img-wrapper {
+              height: 250px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background-color: #ffffff;
+              border-radius: 6px;
+              overflow: hidden;
+              border: 1px dashed #cbd5e1;
+            }
+            img {
+              max-width: 100%;
+              max-height: 100%;
+              object-fit: contain;
+            }
+            .photo-card {
+              grid-column: span 2;
+              max-width: 200px;
+              margin: 0 auto 30px auto;
+            }
+            .photo-card .img-wrapper {
+              height: 180px;
+              width: 180px;
+              border-radius: 50%;
+              margin: 0 auto;
+            }
+            .no-print-btn {
+              position: fixed;
+              bottom: 20px;
+              right: 20px;
+              background-color: #2563eb;
+              color: #ffffff;
+              border: none;
+              padding: 12px 24px;
+              font-size: 14px;
+              font-weight: 700;
+              border-radius: 8px;
+              cursor: pointer;
+              box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+              transition: background-color 0.2s;
+            }
+            .no-print-btn:hover {
+              background-color: #1d4ed8;
+            }
+            
+            /* Responsive styles for mobile devices */
+            @media (max-width: 640px) {
+              body {
+                margin: 16px;
+              }
+              .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+              }
+              .title {
+                font-size: 20px;
+              }
+              .metadata-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding: 16px;
+              }
+              .images-container {
+                grid-template-columns: 1fr;
+                gap: 16px;
+              }
+              .img-wrapper {
+                height: 180px;
+              }
+              .photo-card {
+                grid-column: span 1;
+              }
+              .no-print-btn {
+                position: fixed;
+                left: 16px;
+                right: 16px;
+                bottom: 16px;
+                width: calc(100% - 32px);
+                box-sizing: border-box;
+                text-align: center;
+              }
+            }
+
+            @media print {
+              .no-print {
+                display: none !important;
+              }
+              body {
+                margin: 20px;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="title">Guest Identity Dossier</div>
+              <div class="subtitle">Hotel stay customer profile report</div>
+            </div>
+            <div style="font-weight: 800; font-size: 18px; color: #475569;">HotelFlow</div>
+          </div>
+
+          <div class="metadata-grid">
+            <div class="metadata-item">
+              <div class="metadata-label">Guest Name</div>
+              <div class="metadata-value">${booking.customer.fullName}</div>
+            </div>
+            <div class="metadata-item">
+              <div class="metadata-label">Mobile Number</div>
+              <div class="metadata-value">${booking.customer.mobileNumber}</div>
+            </div>
+            <div class="metadata-item">
+              <div class="metadata-label">Room Number</div>
+              <div class="metadata-value">Room ${booking.room?.roomNumber || 'N/A'} (${booking.room?.roomType || ''})</div>
+            </div>
+            <div class="metadata-item">
+              <div class="metadata-label">Stay Reference / Reg Number</div>
+              <div class="metadata-value">${booking.registrationNumber || booking.bookingNumber}</div>
+            </div>
+            <div class="metadata-item">
+              <div class="metadata-label">Check-In Date</div>
+              <div class="metadata-value">${new Date(booking.checkInDate).toLocaleDateString(undefined, { dateStyle: 'long' })}</div>
+            </div>
+            <div class="metadata-item">
+              <div class="metadata-label">Check-Out Date</div>
+              <div class="metadata-value">${new Date(booking.checkOutDate).toLocaleDateString(undefined, { dateStyle: 'long' })}</div>
+            </div>
+          </div>
+
+          ${photo ? `
+            <div class="section-title">Customer Photograph</div>
+            <div class="image-card photo-card">
+              <div class="image-title">Passport Photo</div>
+              <div class="img-wrapper">
+                <img src="${photo}" alt="Customer Photo" />
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="section-title">Government Identity Proof (${doc.idType})</div>
+          <div style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 15px; background: #f1f5f9; padding: 10px; border-radius: 6px; border-left: 4px solid #1e3a8a;">
+            ID Document Reference Number: <span style="font-family: monospace; font-size: 14px;">${doc.idNumber}</span>
+          </div>
+
+          <div class="images-container">
+            ${front ? `
+              <div class="image-card">
+                <div class="image-title">ID Front View</div>
+                <div class="img-wrapper">
+                  <img src="${front}" alt="ID Front Image" />
+                </div>
+              </div>
+            ` : ''}
+            
+            ${back ? `
+              <div class="image-card">
+                <div class="image-title">ID Back View</div>
+                <div class="img-wrapper">
+                  <img src="${back}" alt="ID Back Image" />
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <button class="no-print no-print-btn" onclick="window.print()">Print / Save as PDF</button>
+
+          <script>
+            // Auto open the print dialog when images load
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   // Split bookings into active booked list and stay history list
   const bookedReservations = bookings.filter((b) => b.status === 'CONFIRMED');
   const stayRecords = bookings.filter((b) => b.status !== 'CONFIRMED');
@@ -514,7 +824,7 @@ const Bookings: React.FC = () => {
                 <th className="p-4">Guest Info</th>
                 <th className="p-4">Room Allocation</th>
                 <th className="p-4">Stay Dates</th>
-                <th className="p-4">Advance Paid</th>
+                <th className="p-4">Room Price</th>
                 <th className="p-4">Status</th>
                 <th className="p-4 text-right">Actions</th>
               </tr>
@@ -523,7 +833,6 @@ const Bookings: React.FC = () => {
               {list.map((booking) => (
                 <tr key={booking.id} className="hover:bg-slate-850/20 transition-colors">
                   <td className="p-4 font-mono font-semibold text-blue-400">
-                    <div>{booking.bookingNumber}</div>
                     {booking.registrationNumber && (
                       <div className="text-[10px] text-emerald-400 font-bold mt-0.5">
                         Reg: {booking.registrationNumber}
@@ -551,9 +860,18 @@ const Bookings: React.FC = () => {
                     <p><span className="text-slate-500 font-medium">Arrival:</span> {formatDate(booking.checkInDate)}</p>
                     <p><span className="text-slate-500 font-medium">Departure:</span> {formatDate(booking.checkOutDate)}</p>
                   </td>
-                  <td className="p-4 font-semibold text-emerald-400">₹{booking.advancePayment}</td>
+                  <td className="p-4 font-semibold text-emerald-400">₹{booking.price}</td>
                   <td className="p-4">{getStatusBadge(booking.status)}</td>
                   <td className="p-4 text-right space-x-2">
+                    {booking.customer.documents && booking.customer.documents.length > 0 && (
+                      <button
+                        onClick={() => handlePreviewPDF(booking)}
+                        className="p-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-700 text-emerald-400 hover:text-emerald-300 rounded-lg transition-colors cursor-pointer inline-flex"
+                        title="Preview PDF Dossier"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {hasPermission('bookings.update') && (
                       <button
                         onClick={() => openEditModal(booking)}
@@ -611,8 +929,8 @@ const Bookings: React.FC = () => {
                   <span className="block text-[10px] text-slate-500">({booking.room?.roomType})</span>
                 </div>
                 <div>
-                  <span className="block text-[10px] uppercase text-slate-500 tracking-wider">Advance Paid</span>
-                  <span className="font-bold text-emerald-400">₹{booking.advancePayment}</span>
+                  <span className="block text-[10px] uppercase text-slate-500 tracking-wider">Room Price</span>
+                  <span className="font-bold text-emerald-400">₹{booking.price}</span>
                 </div>
               </div>
 
@@ -623,6 +941,15 @@ const Bookings: React.FC = () => {
                 </div>
                 
                 <div className="flex space-x-1.5">
+                  {booking.customer.documents && booking.customer.documents.length > 0 && (
+                    <button
+                      onClick={() => handlePreviewPDF(booking)}
+                      className="p-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-700 text-emerald-400 hover:text-emerald-300 rounded-lg transition-colors cursor-pointer"
+                      title="Preview PDF Dossier"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {hasPermission('bookings.update') && (
                     <button
                       onClick={() => openEditModal(booking)}
@@ -635,7 +962,7 @@ const Bookings: React.FC = () => {
                   {showCancelAction && booking.status === 'CONFIRMED' && hasPermission('bookings.cancel') && (
                     <button
                       onClick={() => handleCancel(booking.id)}
-                      className="p-1.5 bg-rose-950/20 hover:bg-rose-950/55 text-rose-450 hover:text-rose-250 rounded-lg transition-colors cursor-pointer"
+                      className="p-1.5 bg-rose-950/20 hover:bg-rose-950/55 text-rose-455 hover:text-rose-255 rounded-lg transition-colors cursor-pointer"
                       title="Cancel Booking"
                     >
                       <Ban className="w-3.5 h-3.5" />
@@ -735,8 +1062,9 @@ const Bookings: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Registration Number */}
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-4 md:max-h-[60vh] md:overflow-y-auto md:pr-2">
+                {/* Registration Number */}
               <div>
                 <label className="block text-xs font-semibold text-slate-450 mb-1.5">Registration Number</label>
                 <input
@@ -861,21 +1189,40 @@ const Bookings: React.FC = () => {
                     <label className="block text-[10px] font-semibold text-slate-450 mb-1">City</label>
                     <input
                       type="text"
+                      list="cities-datalist-booking"
                       value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="New York"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCity(val);
+                        const found = citiesData.find(c => c.name.toLowerCase() === val.trim().toLowerCase());
+                        if (found) {
+                          setState(found.state);
+                        }
+                      }}
+                      placeholder="e.g. Mumbai"
                       className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
                     />
+                    <datalist id="cities-datalist-booking">
+                      {filteredCities.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold text-slate-450 mb-1">State</label>
                     <input
                       type="text"
+                      list="states-datalist-booking"
                       value={state}
                       onChange={(e) => setState(e.target.value)}
-                      placeholder="NY"
+                      placeholder="e.g. Maharashtra"
                       className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
                     />
+                    <datalist id="states-datalist-booking">
+                      {indianStates.map((s) => (
+                        <option key={s} value={s} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold text-slate-450 mb-1">Zip/Pincode</label>
@@ -944,7 +1291,7 @@ const Bookings: React.FC = () => {
                       {frontImageUrl ? (
                         <div className="w-full space-y-2 text-center">
                           <img
-                            src={frontImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${frontImageUrl}` : frontImageUrl}
+                            src={frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl}
                             alt="ID Front"
                             className="h-20 mx-auto rounded-lg object-cover border border-slate-805"
                           />
@@ -985,7 +1332,7 @@ const Bookings: React.FC = () => {
                       {backImageUrl ? (
                         <div className="w-full space-y-2 text-center">
                           <img
-                            src={backImageUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${backImageUrl}` : backImageUrl}
+                            src={backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl}
                             alt="ID Back"
                             className="h-20 mx-auto rounded-lg object-cover border border-slate-805"
                           />
@@ -1028,7 +1375,7 @@ const Bookings: React.FC = () => {
                     {photoUrl ? (
                       <div className="w-full space-y-2 text-center flex flex-col items-center">
                         <img
-                          src={photoUrl.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${photoUrl}` : photoUrl}
+                          src={photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl}
                           alt="Customer Photo"
                           className="h-20 w-20 rounded-full object-cover border border-slate-805"
                         />
@@ -1246,6 +1593,7 @@ const Bookings: React.FC = () => {
                   className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
                 />
               </div>
+            </div>
 
               {/* Action buttons */}
               <div className="flex justify-end space-x-3 pt-4 border-t border-slate-800 mt-6">

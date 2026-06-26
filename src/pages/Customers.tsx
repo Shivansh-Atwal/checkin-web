@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api from '../utils/api';
+import api, { getBackendUrl } from '../utils/api';
 import { Search, X, Phone, Mail, MapPin, Printer } from 'lucide-react';
 import { formatDate } from '../utils/dateFormatter';
 
@@ -34,7 +34,7 @@ const Customers: React.FC = () => {
     const doc = customer.documents[0];
     if (!doc) return;
 
-    const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const backendUrl = getBackendUrl();
     
     const getFullUrl = (url?: string) => {
       if (!url) return '';
