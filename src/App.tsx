@@ -82,9 +82,9 @@ const PrivateLayout: React.FC = () => {
 
   const renderUserProfile = () => {
     return (
-      <div className="p-4 border-t border-slate-800 space-y-3">
+      <div className="p-4 pb-8 border-t border-slate-800 space-y-3 bg-slate-900/60 backdrop-blur-md">
         <div className="flex items-center px-2">
-          <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-slate-200">
+          <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-slate-200 shrink-0">
             {user.fullName.charAt(0).toUpperCase()}
           </div>
           <div className="ml-3 overflow-hidden">
@@ -94,7 +94,7 @@ const PrivateLayout: React.FC = () => {
         </div>
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center px-4 py-2 bg-slate-800 hover:bg-rose-950 hover:text-rose-200 border border-slate-750 text-slate-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+          className="w-full flex items-center justify-center px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-lg shadow-rose-600/25 border border-rose-500/20"
         >
           <LogOut className="w-4 h-4 mr-2" />
           Sign Out
@@ -106,21 +106,23 @@ const PrivateLayout: React.FC = () => {
   return (
     <div className="flex min-h-screen md:h-screen md:overflow-hidden bg-slate-950 text-slate-100">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex w-64 bg-slate-900 border-r border-slate-800 flex-col justify-between shrink-0">
-        <div>
+      <aside className="hidden md:flex w-64 bg-slate-900 border-r border-slate-800 flex-col justify-between shrink-0 h-full">
+        <div className="flex flex-col flex-1 min-h-0">
           {/* Brand header */}
-          <div className="h-16 flex items-center px-6 border-b border-slate-800">
+          <div className="h-16 flex items-center px-6 border-b border-slate-800 shrink-0">
             <span className="text-xl font-bold tracking-wider text-blue-400 font-mono">HotelFlow</span>
           </div>
 
           {/* Nav links */}
-          <nav className="p-4 space-y-1">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-800 hover:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
             {renderNavLinks()}
           </nav>
         </div>
 
         {/* User profile footer */}
-        {renderUserProfile()}
+        <div className="shrink-0">
+          {renderUserProfile()}
+        </div>
       </aside>
 
       {/* Sidebar - Mobile Drawer */}
@@ -134,9 +136,9 @@ const PrivateLayout: React.FC = () => {
           
           {/* Drawer content */}
           <aside className="relative flex flex-col w-64 max-w-xs bg-slate-900 border-r border-slate-800 h-full justify-between z-10 animate-slide-in-left">
-            <div>
+            <div className="flex flex-col flex-1 min-h-0">
               {/* Brand header */}
-              <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
+              <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800 shrink-0">
                 <span className="text-xl font-bold tracking-wider text-blue-400 font-mono">HotelFlow</span>
                 <button
                   onClick={() => setIsSidebarOpen(false)}
@@ -147,13 +149,15 @@ const PrivateLayout: React.FC = () => {
               </div>
 
               {/* Nav links */}
-              <nav className="p-4 space-y-1">
+              <nav className="flex-1 p-4 space-y-1 overflow-y-auto min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-800 hover:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {renderNavLinks()}
               </nav>
             </div>
 
             {/* User profile footer */}
-            {renderUserProfile()}
+            <div className="shrink-0">
+              {renderUserProfile()}
+            </div>
           </aside>
         </div>
       )}

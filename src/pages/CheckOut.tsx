@@ -269,15 +269,27 @@ const CheckOut: React.FC = () => {
                   <span className="text-xs text-slate-500 block font-semibold uppercase tracking-wider">
                     Rooms to Checkout ({calculations.stayDetails?.length || 1})
                   </span>
-                  <div className="mt-1.5 space-y-1.5">
+                  <div className="mt-1.5 space-y-2.5">
                     {calculations.stayDetails ? (
                       calculations.stayDetails.map((detail: any, idx: number) => (
-                        <p key={idx} className="font-semibold text-white">
-                          Room {detail.roomNumber} <span className="text-xs text-slate-400 font-normal">({detail.roomType} - ₹{detail.pricePerNight}/night)</span>
-                        </p>
+                        <div key={idx}>
+                          <p className="font-semibold text-white">
+                            Room {detail.roomNumber} <span className="text-xs text-slate-400 font-normal">({detail.roomType} - ₹{detail.pricePerNight}/night)</span>
+                          </p>
+                          {detail.checkInTime && (
+                            <p className="text-[11px] text-slate-400 font-normal mt-0.5">
+                              Check-In: {new Date(detail.checkInTime).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </p>
+                          )}
+                        </div>
                       ))
                     ) : (
-                      <p className="font-semibold text-white">Room {checkIn.room.roomNumber}</p>
+                      <div>
+                        <p className="font-semibold text-white">Room {checkIn.room.roomNumber}</p>
+                        <p className="text-[11px] text-slate-400 font-normal mt-0.5">
+                          Check-In: {new Date(checkIn.checkInTime).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>

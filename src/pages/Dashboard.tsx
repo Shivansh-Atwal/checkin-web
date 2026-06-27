@@ -84,6 +84,27 @@ const Dashboard: React.FC = () => {
   const [quickItemLoading, setQuickItemLoading] = useState(false);
   const [quickPreset, setQuickPreset] = useState<string>('custom');
 
+  const [deleteItemLoading, setDeleteItemLoading] = useState<string | null>(null);
+
+  const handleDeleteExtraItem = async (chargeId: string) => {
+    const checkInId = roomDetailsRes?.data?.checkIns?.[0]?.id;
+    if (!checkInId) return;
+    if (!window.confirm('Are you sure you want to remove this item?')) return;
+
+    setDeleteItemLoading(chargeId);
+    try {
+      await api.delete(`/stay/checkin/${checkInId}/extra-charges/${chargeId}`);
+      queryClient.invalidateQueries({ queryKey: ['room-details', selectedRoom?.id] });
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-ledger'] });
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to remove item.');
+    } finally {
+      setDeleteItemLoading(null);
+    }
+  };
+
   const handleAddExtraItem = async () => {
     const checkInId = roomDetailsRes?.data?.checkIns?.[0]?.id;
     if (!checkInId) return;
@@ -273,8 +294,13 @@ const Dashboard: React.FC = () => {
 
               <div>
                 <p className="text-xs font-bold text-slate-300 tracking-wider truncate">
-                  {room.roomType}
+                  {room.checkIns?.[0]?.customer?.fullName}
                 </p>
+                {room.checkIns?.[0]?.checkInTime && (
+                  <p className="text-[10px] text-slate-400 mt-0.5 font-mono">
+                    In: {new Date(room.checkIns[0].checkInTime).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                  </p>
+                )}
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-sm font-semibold text-white">
                     {room.status === 'OCCUPIED' && room.checkIns?.[0] ? (
@@ -385,7 +411,7 @@ const Dashboard: React.FC = () => {
                           <div className="flex items-center text-sm">
                             <Calendar className="w-4 h-4 text-slate-500 mr-2.5 shrink-0" />
                             <span className="text-slate-400 text-xs">
-                              In: {new Date(roomDetailsRes.data.checkIns[0].checkInTime).toLocaleString()}
+                              In: {new Date(roomDetailsRes.data.checkIns[0].checkInTime).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                             </span>
                           </div>
                           <div className="flex items-center text-sm border-t border-slate-800/80 pt-2.5 mt-2.5">
@@ -442,10 +468,30 @@ const Dashboard: React.FC = () => {
                             {roomDetailsRes.data.checkIns[0].extraCharges && roomDetailsRes.data.checkIns[0].extraCharges.length > 0 ? (
                               roomDetailsRes.data.checkIns[0].extraCharges.map((charge: any) => (
                                 <div key={charge.id} className="flex justify-between items-center bg-slate-950/40 px-3.5 py-2.5 rounded-xl border border-slate-850 text-xs">
-                                  <span className="text-slate-300 font-semibold">
-                                    {charge.itemName} {charge.quantity > 1 ? `x${charge.quantity}` : ''}
-                                  </span>
-                                  <span className="font-mono font-bold text-emerald-450">₹{charge.amount.toFixed(2)}</span>
+                                  <div className="flex flex-col">
+                                    <span className="text-slate-300 font-semibold">
+                                      {charge.itemName} {charge.quantity > 1 ? `x${charge.quantity}` : ''}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                      ₹{(charge.amount / charge.quantity).toFixed(2)} each
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-mono font-bold text-emerald-450">₹{charge.amount.toFixed(2)}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteExtraItem(charge.id)}
+                                      disabled={deleteItemLoading === charge.id}
+                                      className="p-1 rounded-md text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                      title="Remove item"
+                                    >
+                                      {deleteItemLoading === charge.id ? (
+                                        <div className="w-3.5 h-3.5 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <X className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  </div>
                                 </div>
                               ))
                             ) : (
@@ -629,24 +675,7 @@ const Dashboard: React.FC = () => {
                     
 
                     {/* Room Capacity */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-950/20 p-4 border border-slate-800 rounded-xl text-center items-center">
-                      <div>
-                        <span className="text-xs text-slate-500 block">Cap Limit</span>
-                        <span className="text-sm font-semibold text-slate-200 mt-0.5">{selectedRoom.capacity} Guests</span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-slate-500 block">Pricing Rate</span>
-                        <span className="text-sm font-semibold text-slate-200 mt-0.5">
-                          {selectedRoom.status === 'OCCUPIED' && roomDetailsRes?.data?.checkIns?.[0] ? (
-                            `₹${roomDetailsRes.data.checkIns[0].pricePerNight}/night`
-                          ) : selectedRoom.status === 'ADVANCE_BOOKED' && roomDetailsRes?.data?.bookings?.[0] ? (
-                            `₹${roomDetailsRes.data.bookings[0].price}/night`
-                          ) : (
-                            'Custom per Stay'
-                          )}
-                        </span>
-                      </div>
-                    </div>
+                   
                   </>
                 )}
               </div>

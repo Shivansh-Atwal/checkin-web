@@ -111,7 +111,7 @@ const CheckIn: React.FC = () => {
     setAddress(customer.address || '');
     setCity(customer.city || '');
     setState(customer.state || '');
-    setCountry(customer.country || '');
+    setCountry(customer.country || 'Indian');
     setPincode(customer.pincode || '');
     
     if (customer.documents && customer.documents.length > 0) {
@@ -172,7 +172,7 @@ const CheckIn: React.FC = () => {
     ).sort();
   }, [state]);
 
-  const [country, setCountry] = useState(''); // Nationality
+  const [country, setCountry] = useState('Indian'); // Nationality
   const [pincode, setPincode] = useState('');
   const [registrationNumber, setRegistrationNumber] = useState('');
 
@@ -387,7 +387,7 @@ const CheckIn: React.FC = () => {
       setAddress(b.customer.address || '');
       setCity(b.customer.city || '');
       setState(b.customer.state || '');
-      setCountry(b.customer.country || '');
+      setCountry(b.customer.country || 'Indian');
       setPincode(b.customer.pincode || '');
 
       // Prefill document details if they exist
@@ -426,6 +426,36 @@ const CheckIn: React.FC = () => {
   }, [bookingId, bookingRes]);
 
   const [priceCost, setPriceCost] = useState(1000);
+  const [roomPrices, setRoomPrices] = useState<{ [roomId: string]: number }>({});
+
+  const getRoomNumber = (id: string) => {
+    const r = rooms.find((x) => x.id === id);
+    if (r) return r.roomNumber;
+    if (bookingRes?.data?.room && bookingRes.data.roomId === id) {
+      return bookingRes.data.room.roomNumber;
+    }
+    return 'Prefilled';
+  };
+
+  useEffect(() => {
+    setRoomPrices((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      selectedRoomIds.forEach((id) => {
+        if (next[id] === undefined) {
+          next[id] = priceCost;
+          changed = true;
+        }
+      });
+      Object.keys(next).forEach((id) => {
+        if (!selectedRoomIds.includes(id)) {
+          delete next[id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [selectedRoomIds, priceCost]);
 
   // Submit Mutation
   const checkinMutation = useMutation({
@@ -461,7 +491,11 @@ const CheckIn: React.FC = () => {
 
     // Default stay calculations to 1 base night since check-out isn't scheduled
     const nights = 1;
-    const totalEstimate = priceCost * nights * selectedRoomIds.length;
+    let totalEstimate = 0;
+    selectedRoomIds.forEach((id) => {
+      const pr = roomPrices[id] !== undefined ? roomPrices[id] : priceCost;
+      totalEstimate += pr * nights;
+    });
     const remainingAmount = Math.max(0, totalEstimate - advancePaid);
 
     const payload: any = {
@@ -473,6 +507,7 @@ const CheckIn: React.FC = () => {
       paymentMethod,
       registrationNumber: registrationNumber || '',
       pricePerNight: Number(priceCost),
+      roomPrices,
     };
 
     if (selectedRoomIds.length > 0) {
@@ -1111,6 +1146,39 @@ const CheckIn: React.FC = () => {
               </select>
             </div>
           </div>
+
+          {selectedRoomIds.length > 1 && (
+            <div className="border-t border-slate-800/60 pt-4 space-y-3.5">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Custom Price per Room</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {selectedRoomIds.map((id) => {
+                  const roomNum = getRoomNumber(id);
+                  return (
+                    <div key={id} className="flex items-center justify-between bg-slate-950/40 p-3 border border-slate-850 rounded-xl">
+                      <span className="text-xs font-semibold text-slate-300">Room {roomNum}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500 font-medium">₹</span>
+                        <input
+                          type="number"
+                          required
+                          min={0}
+                          value={roomPrices[id] !== undefined ? roomPrices[id] : priceCost}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setRoomPrices((prev) => ({
+                              ...prev,
+                              [id]: val,
+                            }));
+                          }}
+                          className="w-24 bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg py-1 px-2 text-xs text-white outline-none text-right font-mono"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Form Submit */}
           <div className="flex justify-end pt-4 border-t border-slate-800 mt-6">
