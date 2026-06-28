@@ -183,6 +183,7 @@ const CheckIn: React.FC = () => {
   const [backImageUrl, setBackImageUrl] = useState('');
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState('');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Camera Modal states
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -426,7 +427,12 @@ const CheckIn: React.FC = () => {
   }, [bookingId, bookingRes]);
 
   const [priceCost, setPriceCost] = useState(1000);
+  const [extraBedsCount, setExtraBedsCount] = useState(0);
+  const [extraBedPrice, setExtraBedPrice] = useState(0);
   const [roomPrices, setRoomPrices] = useState<{ [roomId: string]: number }>({});
+  const sumOfRoomPrices = selectedRoomIds.length > 0
+    ? selectedRoomIds.reduce((sum, id) => sum + (roomPrices[id] !== undefined ? roomPrices[id] : priceCost), 0)
+    : priceCost;
 
   const getRoomNumber = (id: string) => {
     const r = rooms.find((x) => x.id === id);
@@ -492,10 +498,12 @@ const CheckIn: React.FC = () => {
     // Default stay calculations to 1 base night since check-out isn't scheduled
     const nights = 1;
     let totalEstimate = 0;
+    const totalExtraBedsCost = Number(extraBedsCount) * Number(extraBedPrice);
     selectedRoomIds.forEach((id) => {
       const pr = roomPrices[id] !== undefined ? roomPrices[id] : priceCost;
       totalEstimate += pr * nights;
     });
+    totalEstimate += totalExtraBedsCost * nights;
     const remainingAmount = Math.max(0, totalEstimate - advancePaid);
 
     const payload: any = {
@@ -505,9 +513,11 @@ const CheckIn: React.FC = () => {
       advancePaid: Number(advancePaid),
       remainingAmount,
       paymentMethod,
-      registrationNumber: registrationNumber || '',
+      registrationNumber: (registrationNumber || '').toUpperCase(),
       pricePerNight: Number(priceCost),
       roomPrices,
+      extraBedsCount: Number(extraBedsCount),
+      extraBedPrice: Number(extraBedPrice),
     };
 
     if (selectedRoomIds.length > 0) {
@@ -517,14 +527,14 @@ const CheckIn: React.FC = () => {
     if (bookingId) {
       payload.bookingId = bookingId;
       // Send document and address details for pre-existing booking arrivals too
-      payload.address = address;
-      payload.city = city;
-      payload.state = state;
-      payload.country = country;
-      payload.pincode = pincode;
+      payload.address = (address || '').toUpperCase();
+      payload.city = (city || '').toUpperCase();
+      payload.state = (state || '').toUpperCase();
+      payload.country = (country || '').toUpperCase();
+      payload.pincode = (pincode || '').toUpperCase();
       payload.document = {
-        idType,
-        idNumber,
+        idType: (idType || '').toUpperCase(),
+        idNumber: (idNumber || '').toUpperCase(),
         frontImageUrl: frontImageUrl || undefined,
         backImageUrl: backImageUrl || undefined,
         customerPhotoUrl: photoUrl || undefined,
@@ -533,16 +543,16 @@ const CheckIn: React.FC = () => {
       if (customerId) {
         payload.customerId = customerId;
       }
-      payload.customerName = customerName;
+      payload.customerName = (customerName || '').toUpperCase();
       payload.mobileNumber = mobileNumber;
-      payload.address = address;
-      payload.city = city;
-      payload.state = state;
-      payload.country = country;
-      payload.pincode = pincode;
+      payload.address = (address || '').toUpperCase();
+      payload.city = (city || '').toUpperCase();
+      payload.state = (state || '').toUpperCase();
+      payload.country = (country || '').toUpperCase();
+      payload.pincode = (pincode || '').toUpperCase();
       payload.document = {
-        idType,
-        idNumber,
+        idType: (idType || '').toUpperCase(),
+        idNumber: (idNumber || '').toUpperCase(),
         frontImageUrl: frontImageUrl || undefined,
         backImageUrl: backImageUrl || undefined,
         customerPhotoUrl: photoUrl || undefined,
@@ -607,7 +617,7 @@ const CheckIn: React.FC = () => {
                     fetchSuggestions(val, 'name');
                   }}
                   onBlur={() => setShowSuggestions(false)}
-                  placeholder="e.g. Samuel L. Jackson"
+                  placeholder="e.g. SHIVANSH ATWAL"
                   className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
                 />
                 {showSuggestions && suggestionField === 'name' && suggestions.length > 0 && (
@@ -807,7 +817,8 @@ const CheckIn: React.FC = () => {
                     <img
                       src={frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl}
                       alt="ID Front"
-                      className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
+                      className="h-28 mx-auto rounded-lg object-cover border border-slate-800 cursor-zoom-in hover:opacity-90 transition-opacity"
+                      onClick={() => setPreviewImage(frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl)}
                     />
                     <button
                       type="button"
@@ -858,7 +869,8 @@ const CheckIn: React.FC = () => {
                     <img
                       src={backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl}
                       alt="ID Back"
-                      className="h-28 mx-auto rounded-lg object-cover border border-slate-800"
+                      className="h-28 mx-auto rounded-lg object-cover border border-slate-800 cursor-zoom-in hover:opacity-90 transition-opacity"
+                      onClick={() => setPreviewImage(backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl)}
                     />
                     <button
                       type="button"
@@ -913,7 +925,8 @@ const CheckIn: React.FC = () => {
                     <img
                       src={photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl}
                       alt="Customer Photo"
-                      className="h-28 w-28 mx-auto rounded-full object-cover border border-slate-800"
+                      className="h-28 w-28 mx-auto rounded-full object-cover border border-slate-800 cursor-zoom-in hover:opacity-90 transition-opacity"
+                      onClick={() => setPreviewImage(photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl)}
                     />
                     <button
                       type="button"
@@ -1111,32 +1124,58 @@ const CheckIn: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800/60 pt-4">
+          {/* Extra Bed Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Stay Cost/Night (₹)</label>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Extra Beds Quantity</label>
               <input
                 type="number"
-                required
-                value={priceCost}
-                onChange={(e) => setPriceCost(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                min="0"
+                value={extraBedsCount}
+                onChange={(e) => setExtraBedsCount(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none font-mono"
               />
             </div>
             <div>
+              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Price per Extra Bed (₹)</label>
+              <input
+                type="number"
+                min="0"
+                value={extraBedPrice}
+                onChange={(e) => setExtraBedPrice(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800/60 pt-4">
+            {selectedRoomIds.length <= 1 && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-450 mb-1.5">Stay Cost/Night (₹)</label>
+                <input
+                  type="number"
+                  required
+                  value={priceCost}
+                  onChange={(e) => setPriceCost(Number(e.target.value))}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none font-mono"
+                />
+              </div>
+            )}
+            <div className={selectedRoomIds.length > 1 ? "md:col-span-1" : ""}>
               <label className="block text-xs font-semibold text-slate-450 mb-1.5">Deposit Advance Paid (₹)</label>
               <input
                 type="number"
                 value={advancePaid}
                 onChange={(e) => setAdvancePaid(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none font-mono"
               />
             </div>
-            <div>
+            <div className={selectedRoomIds.length > 1 ? "md:col-span-2" : ""}>
               <label className="block text-xs font-semibold text-slate-450 mb-1.5">Payment Method</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none cursor-pointer"
               >
                 <option value="Cash">Cash</option>
                 <option value="UPI">UPI / QR Scan</option>
@@ -1144,6 +1183,23 @@ const CheckIn: React.FC = () => {
                 <option value="Credit Card">Credit Card</option>
                 <option value="Bank Transfer">Bank Transfer</option>
               </select>
+            </div>
+          </div>
+
+          {/* Stay Billing Summary */}
+          <div className="bg-slate-950/40 p-4 border border-slate-800 rounded-xl space-y-2 mt-4">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Billing Summary / Night</h4>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-slate-400">Total Room Charges / Night:</span>
+              <span className="font-mono text-white font-semibold">₹{sumOfRoomPrices}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-slate-400">Extra Beds Cost / Night:</span>
+              <span className="font-mono text-white font-semibold">₹{extraBedsCount * extraBedPrice}</span>
+            </div>
+            <div className="flex justify-between items-center border-t border-slate-800/80 pt-2 text-sm font-bold">
+              <span className="text-blue-400">Total Rate / Night:</span>
+              <span className="font-mono text-white">₹{sumOfRoomPrices + (extraBedsCount * extraBedPrice)}</span>
             </div>
           </div>
 
@@ -1323,6 +1379,27 @@ const CheckIn: React.FC = () => {
       )}
       {/* Hidden canvas for video captures */}
       <canvas ref={canvasRef} className="hidden" />
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-fade-in cursor-zoom-out"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 p-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 text-slate-350 hover:text-white rounded-full transition-all shadow-md cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="relative max-w-4xl max-h-[85vh] w-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={previewImage}
+              alt="Fullscreen Preview"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-slate-800 shadow-2xl animate-scale-in"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

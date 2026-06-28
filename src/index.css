@@ -157,3 +157,29 @@ input, select, textarea {
   animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Force all text inputs, textareas, and dropdown selections to render in uppercase */
+input[type="text"]:not([type="email"]):not([name*="email"]), 
+textarea, 
+select {
+  text-transform: uppercase !important;
+}
+
+input::placeholder, 
+textarea::placeholder {
+  text-transform: none !important;
+}
+
+/* Style guest names, room type/details, and notes to render uppercase globally */
+.guest-name, 
+.room-number, 
+.room-type, 
+.booking-number, 
+.reg-number, 
+.invoice-number,
+.city-display,
+.state-display,
+.country-display,
+.address-display {
+  text-transform: uppercase !important;
+}
+

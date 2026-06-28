@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../utils/api';
 import { FileDown, Search, ClipboardList, Calendar } from 'lucide-react';
 import { formatDate } from '../utils/dateFormatter';
+import { Link } from 'react-router-dom';
 
 interface StayRecord {
   id: string;
@@ -111,13 +112,21 @@ const Records: React.FC = () => {
         <div>
           <p className="text-sm font-semibold text-slate-350">Search, review, and export all guest check-in records</p>
         </div>
-        <button
-          onClick={handleExportCSV}
-          className="flex items-center justify-center px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-770 hover:border-slate-600 text-white font-black rounded-xl text-xs shadow-lg shadow-slate-950/50 transition-colors cursor-pointer"
-        >
-          <FileDown className="w-4 h-4 mr-2" />
-          Export Stay Records CSV
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to="/records/previous"
+            className="flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-blue-500/10 transition-colors cursor-pointer"
+          >
+            Add Missed Stay Record
+          </Link>
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center justify-center px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-770 hover:border-slate-600 text-white font-black rounded-xl text-xs shadow-lg shadow-slate-950/50 transition-colors cursor-pointer"
+          >
+            <FileDown className="w-4 h-4 mr-2" />
+            Export Stay Records CSV
+          </button>
+        </div>
       </div>
 
       {isLoading ? (

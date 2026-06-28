@@ -2,12 +2,20 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { getBackendUrl } from '../utils/api';
 import { useAuthStore } from '../store/authStore';
-import { Plus, X, Search, Phone, Ban, Pencil, MapPin, Globe, History, BookmarkCheck, Upload, FileText } from 'lucide-react';
+import { Plus, X, Search, Phone, Ban, Pencil, MapPin, Globe, History, BookmarkCheck, Upload, FileText, Clock } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { formatDate } from '../utils/dateFormatter';
+import { formatDate, formatTime12h } from '../utils/dateFormatter';
 import citiesData from '../utils/cities.json';
 
 const indianStates = Array.from(new Set(citiesData.map((c: any) => c.state))).sort();
+
+interface CheckInRecord {
+  id: string;
+  checkInTime: string;
+  actualCheckOutTime?: string | null;
+  registrationNumber?: string | null;
+  status: string;
+}
 
 interface Booking {
   id: string;
@@ -43,6 +51,7 @@ interface Booking {
     roomType: string;
   };
   registrationNumber?: string;
+  checkInRecord?: CheckInRecord | null;
 }
 
 const compressImage = (file: File, quality = 0.7, maxWidth = 1024, maxHeight = 1024): Promise<File> => {
@@ -129,6 +138,7 @@ const Bookings: React.FC = () => {
   const [frontImageUrl, setFrontImageUrl] = useState('');
   const [backImageUrl, setBackImageUrl] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [frontImageLoading, setFrontImageLoading] = useState(false);
   const [backImageLoading, setBackImageLoading] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
@@ -238,7 +248,9 @@ const Bookings: React.FC = () => {
   const [roomDropdownOpen, setRoomDropdownOpen] = useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const [checkInDate, setCheckInDate] = useState('');
+  const [checkInTime, setCheckInTime] = useState('12:00');
   const [checkOutDate, setCheckOutDate] = useState('');
+  const [checkOutTime, setCheckOutTime] = useState('12:00');
   const [numberOfGuests, setNumberOfGuests] = useState(1);
   const [price, setPrice] = useState(80);
   const [advancePayment, setAdvancePayment] = useState(0);
@@ -360,6 +372,21 @@ const Bookings: React.FC = () => {
     
     setCheckInDate(new Date(booking.checkInDate).toISOString().split('T')[0]);
     setCheckOutDate(new Date(booking.checkOutDate).toISOString().split('T')[0]);
+
+    const checkInDateTime = booking.checkInRecord?.checkInTime || booking.checkInDate;
+    const checkOutDateTime = booking.checkInRecord?.actualCheckOutTime || booking.checkOutDate;
+
+    const getTimeString = (dateTimeStr?: string | null) => {
+      if (!dateTimeStr) return '12:00';
+      const d = new Date(dateTimeStr);
+      if (isNaN(d.getTime())) return '12:00';
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    };
+
+    setCheckInTime(getTimeString(checkInDateTime));
+    setCheckOutTime(getTimeString(checkOutDateTime));
     
     setNumberOfGuests(booking.numberOfGuests);
     setPrice(booking.price);
@@ -400,7 +427,9 @@ const Bookings: React.FC = () => {
     setPincode('');
     setSelectedRoomIds([]);
     setCheckInDate('');
+    setCheckInTime('12:00');
     setCheckOutDate('');
+    setCheckOutTime('12:00');
     setNumberOfGuests(1);
     setPrice(80);
     setAdvancePayment(0);
@@ -419,30 +448,49 @@ const Bookings: React.FC = () => {
     e.preventDefault();
     setValidationError(null);
 
-    if (new Date(checkOutDate) <= new Date(checkInDate)) {
-      setValidationError('Check-out date must be after check-in date.');
+    // Format checkInDate / checkOutDate to the custom format: DD-MM-YYYY : HH: MM : 00
+    const parseToCustomFormat = (dateStr: string, timeStr: string) => {
+      if (!dateStr) return '';
+      const [y, m, d] = dateStr.split('-');
+      const formattedTime = timeStr || '12:00';
+      return `${d}-${m}-${y} : ${formattedTime}:00`;
+    };
+
+    const checkInDateTimeParsed = new Date(`${checkInDate}T${checkInTime || '12:00'}:00`);
+    const checkOutDateTimeParsed = new Date(`${checkOutDate}T${checkOutTime || '12:00'}:00`);
+
+    if (checkOutDateTimeParsed <= checkInDateTimeParsed) {
+      setValidationError('Check-out date and time must be after check-in date and time.');
       return;
     }
 
+    const finalCheckInPayload = editingBooking && (editingBooking.status === 'CHECKED_IN' || editingBooking.status === 'CHECKED_OUT')
+      ? parseToCustomFormat(checkInDate, checkInTime)
+      : checkInDate;
+
+    const finalCheckOutPayload = editingBooking && editingBooking.status === 'CHECKED_OUT'
+      ? parseToCustomFormat(checkOutDate, checkOutTime)
+      : checkOutDate;
+
     const payload: any = {
-      customerName,
+      customerName: (customerName || '').toUpperCase(),
       mobileNumber,
-      address,
-      city,
-      state,
-      country,
-      pincode,
-      checkInDate,
-      checkOutDate,
+      address: (address || '').toUpperCase(),
+      city: (city || '').toUpperCase(),
+      state: (state || '').toUpperCase(),
+      country: (country || '').toUpperCase(),
+      pincode: (pincode || '').toUpperCase(),
+      checkInDate: finalCheckInPayload,
+      checkOutDate: finalCheckOutPayload,
       numberOfGuests: Number(numberOfGuests),
       price: Number(price),
       advancePayment: Number(advancePayment),
-      notes,
+      notes: (notes || '').toUpperCase(),
       status,
-      registrationNumber: registrationNumber || '',
+      registrationNumber: (registrationNumber || '').toUpperCase(),
       document: {
-        idType,
-        idNumber,
+        idType: (idType || '').toUpperCase(),
+        idNumber: (idNumber || '').toUpperCase(),
         frontImageUrl: frontImageUrl || undefined,
         backImageUrl: backImageUrl || undefined,
         customerPhotoUrl: photoUrl || undefined,
@@ -1293,7 +1341,8 @@ const Bookings: React.FC = () => {
                           <img
                             src={frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl}
                             alt="ID Front"
-                            className="h-20 mx-auto rounded-lg object-cover border border-slate-805"
+                            className="h-20 mx-auto rounded-lg object-cover border border-slate-805 cursor-zoom-in hover:opacity-90 transition-opacity"
+                            onClick={() => setPreviewImage(frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl)}
                           />
                           <button
                             type="button"
@@ -1334,7 +1383,8 @@ const Bookings: React.FC = () => {
                           <img
                             src={backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl}
                             alt="ID Back"
-                            className="h-20 mx-auto rounded-lg object-cover border border-slate-805"
+                            className="h-20 mx-auto rounded-lg object-cover border border-slate-805 cursor-zoom-in hover:opacity-90 transition-opacity"
+                            onClick={() => setPreviewImage(backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl)}
                           />
                           <button
                             type="button"
@@ -1377,7 +1427,8 @@ const Bookings: React.FC = () => {
                         <img
                           src={photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl}
                           alt="Customer Photo"
-                          className="h-20 w-20 rounded-full object-cover border border-slate-805"
+                          className="h-20 w-20 rounded-full object-cover border border-slate-805 cursor-zoom-in hover:opacity-90 transition-opacity"
+                          onClick={() => setPreviewImage(photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl)}
                         />
                         <button
                           type="button"
@@ -1423,6 +1474,26 @@ const Bookings: React.FC = () => {
                     onChange={(e) => setCheckInDate(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
                   />
+                  {editingBooking && (editingBooking.status === 'CHECKED_IN' || editingBooking.status === 'CHECKED_OUT') && (
+                    <div className="mt-2.5 p-3.5 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-2 animate-fade-in">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-[11px] font-semibold text-emerald-300 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                          Actual Check-In Time
+                        </label>
+                        <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded">
+                          {formatTime12h(`${checkInDate}T${checkInTime}`)}
+                        </span>
+                      </div>
+                      <input
+                        type="time"
+                        required
+                        value={checkInTime}
+                        onChange={(e) => setCheckInTime(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3 text-xs text-white outline-none transition-colors"
+                      />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-450 mb-1.5">Check-Out Date</label>
@@ -1433,6 +1504,26 @@ const Bookings: React.FC = () => {
                     onChange={(e) => setCheckOutDate(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
                   />
+                  {editingBooking && editingBooking.status === 'CHECKED_OUT' && (
+                    <div className="mt-2.5 p-3.5 bg-blue-500/5 border border-blue-500/10 rounded-xl space-y-2 animate-fade-in">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-[11px] font-semibold text-blue-300 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-blue-400" />
+                          Actual Check-Out Time
+                        </label>
+                        <span className="text-[10px] text-blue-400 font-mono bg-blue-500/10 px-2 py-0.5 rounded">
+                          {formatTime12h(`${checkOutDate}T${checkOutTime}`)}
+                        </span>
+                      </div>
+                      <input
+                        type="time"
+                        required
+                        value={checkOutTime}
+                        onChange={(e) => setCheckOutTime(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3 text-xs text-white outline-none transition-colors"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1612,6 +1703,26 @@ const Bookings: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-fade-in cursor-zoom-out"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 p-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 text-slate-350 hover:text-white rounded-full transition-all shadow-md cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="relative max-w-4xl max-h-[85vh] w-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={previewImage}
+              alt="Fullscreen Preview"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-slate-800 shadow-2xl animate-scale-in"
+            />
           </div>
         </div>
       )}

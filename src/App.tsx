@@ -13,6 +13,7 @@ import Reports from './pages/Reports';
 import Records from './pages/Records';
 import AuditLogs from './pages/AuditLogs';
 import Inventory from './pages/Inventory';
+import PreviousStay from './pages/PreviousStay';
 
 import {
   LayoutDashboard,
@@ -194,6 +195,7 @@ const PrivateLayout: React.FC = () => {
             <Route path="/employees" element={<Employees />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/records" element={<Records />} />
+            <Route path="/records/previous" element={<PreviousStay />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/logs" element={<AuditLogs />} />
             <Route path="*" element={<Navigate to="/" replace />} />
