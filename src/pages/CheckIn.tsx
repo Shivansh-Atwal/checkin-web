@@ -147,8 +147,15 @@ const CheckIn: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const getLocalDateString = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const [numberOfGuests, setNumberOfGuests] = useState(1);
-  const [arrivalDate, setArrivalDate] = useState(new Date().toISOString().split('T')[0]);
+  const [arrivalDate, setArrivalDate] = useState(getLocalDateString(new Date()));
   const [arrivalTime, setArrivalTime] = useState(new Date().toTimeString().slice(0, 5));
   const [advancePaid, setAdvancePaid] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
@@ -427,8 +434,6 @@ const CheckIn: React.FC = () => {
   }, [bookingId, bookingRes]);
 
   const [priceCost, setPriceCost] = useState(1000);
-  const [extraBedsCount, setExtraBedsCount] = useState(0);
-  const [extraBedPrice, setExtraBedPrice] = useState(0);
   const [roomPrices, setRoomPrices] = useState<{ [roomId: string]: number }>({});
   const sumOfRoomPrices = selectedRoomIds.length > 0
     ? selectedRoomIds.reduce((sum, id) => sum + (roomPrices[id] !== undefined ? roomPrices[id] : priceCost), 0)
@@ -505,12 +510,10 @@ const CheckIn: React.FC = () => {
     // Default stay calculations to 1 base night since check-out isn't scheduled
     const nights = 1;
     let totalEstimate = 0;
-    const totalExtraBedsCost = Number(extraBedsCount) * Number(extraBedPrice);
     selectedRoomIds.forEach((id) => {
       const pr = roomPrices[id] !== undefined ? roomPrices[id] : priceCost;
       totalEstimate += pr * nights;
     });
-    totalEstimate += totalExtraBedsCost * nights;
     const remainingAmount = Math.max(0, totalEstimate - advancePaid);
 
     const payload: any = {
@@ -523,8 +526,8 @@ const CheckIn: React.FC = () => {
       registrationNumber: (registrationNumber || '').toUpperCase(),
       pricePerNight: Number(priceCost),
       roomPrices,
-      extraBedsCount: Number(extraBedsCount),
-      extraBedPrice: Number(extraBedPrice),
+      extraBedsCount: 0,
+      extraBedPrice: 0,
     };
 
     if (selectedRoomIds.length > 0) {
@@ -1131,29 +1134,7 @@ const CheckIn: React.FC = () => {
             </div>
           </div>
 
-          {/* Extra Bed Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Extra Beds Quantity</label>
-              <input
-                type="number"
-                min="0"
-                value={extraBedsCount}
-                onChange={(e) => setExtraBedsCount(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-450 mb-1.5">Price per Extra Bed (₹)</label>
-              <input
-                type="number"
-                min="0"
-                value={extraBedPrice}
-                onChange={(e) => setExtraBedPrice(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none font-mono"
-              />
-            </div>
-          </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800/60 pt-4">
             {selectedRoomIds.length <= 1 && (
@@ -1200,13 +1181,9 @@ const CheckIn: React.FC = () => {
               <span className="text-slate-400">Total Room Charges / Night:</span>
               <span className="font-mono text-white font-semibold">₹{sumOfRoomPrices}</span>
             </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-400">Extra Beds Cost / Night:</span>
-              <span className="font-mono text-white font-semibold">₹{extraBedsCount * extraBedPrice}</span>
-            </div>
             <div className="flex justify-between items-center border-t border-slate-800/80 pt-2 text-sm font-bold">
               <span className="text-blue-400">Total Rate / Night:</span>
-              <span className="font-mono text-white">₹{sumOfRoomPrices + (extraBedsCount * extraBedPrice)}</span>
+              <span className="font-mono text-white">₹{sumOfRoomPrices}</span>
             </div>
           </div>
 

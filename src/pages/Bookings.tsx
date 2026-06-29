@@ -370,11 +370,15 @@ const Bookings: React.FC = () => {
     setPincode(booking.customer.pincode || '');
     setSelectedRoomIds([booking.roomId]);
 
-    setCheckInDate(new Date(booking.checkInDate).toISOString().split('T')[0]);
-    setCheckOutDate(new Date(booking.checkOutDate).toISOString().split('T')[0]);
-
-    const checkInDateTime = booking.checkInRecord?.checkInTime || booking.checkInDate;
-    const checkOutDateTime = booking.checkInRecord?.actualCheckOutTime || booking.checkOutDate;
+    const getLocalDateString = (dateTimeStr?: string | Date | null) => {
+      if (!dateTimeStr) return '';
+      const d = new Date(dateTimeStr);
+      if (isNaN(d.getTime())) return '';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
 
     const getTimeString = (dateTimeStr?: string | null) => {
       if (!dateTimeStr) return '12:00';
@@ -385,8 +389,24 @@ const Bookings: React.FC = () => {
       return `${hh}:${mm}`;
     };
 
-    setCheckInTime(getTimeString(checkInDateTime));
-    setCheckOutTime(getTimeString(checkOutDateTime));
+    const checkInDateTime = booking.checkInRecord?.checkInTime;
+    const checkOutDateTime = booking.checkInRecord?.actualCheckOutTime;
+
+    if (checkInDateTime) {
+      setCheckInDate(getLocalDateString(checkInDateTime));
+      setCheckInTime(getTimeString(checkInDateTime));
+    } else {
+      setCheckInDate(booking.checkInDate ? booking.checkInDate.split('T')[0] : '');
+      setCheckInTime('12:00');
+    }
+
+    if (checkOutDateTime) {
+      setCheckOutDate(getLocalDateString(checkOutDateTime));
+      setCheckOutTime(getTimeString(checkOutDateTime));
+    } else {
+      setCheckOutDate(booking.checkOutDate ? booking.checkOutDate.split('T')[0] : '');
+      setCheckOutTime('12:00');
+    }
 
     setNumberOfGuests(booking.numberOfGuests);
     setPrice(booking.price);
