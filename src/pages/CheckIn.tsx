@@ -520,6 +520,7 @@ const CheckIn: React.FC = () => {
       numberOfGuests: Number(numberOfGuests),
       arrivalDate,
       arrivalTime,
+      checkInTime: new Date(`${arrivalDate}T${arrivalTime}`).toISOString(),
       advancePaid: Number(advancePaid),
       remainingAmount,
       paymentMethod,

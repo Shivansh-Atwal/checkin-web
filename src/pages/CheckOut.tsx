@@ -81,12 +81,14 @@ const CheckOut: React.FC = () => {
   // Fetch Live calculations preview
   const { data: previewRes, isLoading: previewLoading } = useQuery({
     queryKey: ['checkout-preview', checkInId, additionalCharges, discount, taxRate, checkoutDate, checkoutTime],
-    queryFn: () =>
-      api
+    queryFn: () => {
+      const checkoutTimeISO = new Date(`${checkoutDate}T${checkoutTime}`).toISOString();
+      return api
         .get(
-          `/stay/checkout/preview/${checkInId}?additionalCharges=${additionalCharges}&discount=${discount}&taxRate=${taxRate}&checkoutDate=${checkoutDate}&checkoutTime=${checkoutTime}`
+          `/stay/checkout/preview/${checkInId}?additionalCharges=${additionalCharges}&discount=${discount}&taxRate=${taxRate}&checkoutDate=${checkoutDate}&checkoutTime=${checkoutTime}&checkoutTimeISO=${encodeURIComponent(checkoutTimeISO)}`
         )
-        .then((res) => res.data),
+        .then((res) => res.data);
+    },
     enabled: !!checkInId,
   });
 
@@ -124,6 +126,7 @@ const CheckOut: React.FC = () => {
     if (!checkInId) return;
 
     setLoading(true);
+    const checkoutTimeISO = new Date(`${checkoutDate}T${checkoutTime}`).toISOString();
     checkoutMutation.mutate({
       checkInId,
       additionalCharges,
@@ -133,6 +136,7 @@ const CheckOut: React.FC = () => {
       notes,
       checkoutDate,
       checkoutTime,
+      checkoutTimeISO,
     });
   };
 

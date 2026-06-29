@@ -468,13 +468,7 @@ const Bookings: React.FC = () => {
     e.preventDefault();
     setValidationError(null);
 
-    // Format checkInDate / checkOutDate to the custom format: DD-MM-YYYY : HH: MM : 00
-    const parseToCustomFormat = (dateStr: string, timeStr: string) => {
-      if (!dateStr) return '';
-      const [y, m, d] = dateStr.split('-');
-      const formattedTime = timeStr || '12:00';
-      return `${d}-${m}-${y} : ${formattedTime}:00`;
-    };
+
 
     const checkInDateTimeParsed = new Date(`${checkInDate}T${checkInTime || '12:00'}:00`);
     const checkOutDateTimeParsed = new Date(`${checkOutDate}T${checkOutTime || '12:00'}:00`);
@@ -485,11 +479,11 @@ const Bookings: React.FC = () => {
     }
 
     const finalCheckInPayload = editingBooking && (editingBooking.status === 'CHECKED_IN' || editingBooking.status === 'CHECKED_OUT')
-      ? parseToCustomFormat(checkInDate, checkInTime)
+      ? new Date(`${checkInDate}T${checkInTime || '12:00'}:00`).toISOString()
       : checkInDate;
 
     const finalCheckOutPayload = editingBooking && editingBooking.status === 'CHECKED_OUT'
-      ? parseToCustomFormat(checkOutDate, checkOutTime)
+      ? new Date(`${checkOutDate}T${checkOutTime || '12:00'}:00`).toISOString()
       : checkOutDate;
 
     const payload: any = {
