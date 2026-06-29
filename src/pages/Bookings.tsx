@@ -369,7 +369,7 @@ const Bookings: React.FC = () => {
     setCountry(booking.customer.country || '');
     setPincode(booking.customer.pincode || '');
     setSelectedRoomIds([booking.roomId]);
-    
+
     setCheckInDate(new Date(booking.checkInDate).toISOString().split('T')[0]);
     setCheckOutDate(new Date(booking.checkOutDate).toISOString().split('T')[0]);
 
@@ -387,7 +387,7 @@ const Bookings: React.FC = () => {
 
     setCheckInTime(getTimeString(checkInDateTime));
     setCheckOutTime(getTimeString(checkOutDateTime));
-    
+
     setNumberOfGuests(booking.numberOfGuests);
     setPrice(booking.price);
     setAdvancePayment(booking.advancePayment);
@@ -955,7 +955,7 @@ const Bookings: React.FC = () => {
                 </span>
                 {getStatusBadge(booking.status)}
               </div>
-              
+
               <div>
                 <p className="font-bold text-white text-sm">{booking.customer.fullName}</p>
                 <p className="text-xs text-slate-400 flex items-center mt-1">
@@ -987,7 +987,7 @@ const Bookings: React.FC = () => {
                   <p><span className="text-slate-500">Check-in:</span> {formatDate(booking.checkInDate)}</p>
                   <p><span className="text-slate-500">Check-out:</span> {formatDate(booking.checkOutDate)}</p>
                 </div>
-                
+
                 <div className="flex space-x-1.5">
                   {booking.customer.documents && booking.customer.documents.length > 0 && (
                     <button
@@ -1113,578 +1113,578 @@ const Bookings: React.FC = () => {
             <form onSubmit={handleSubmit}>
               <div className="space-y-4 md:max-h-[60vh] md:overflow-y-auto md:pr-2">
                 {/* Registration Number */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-450 mb-1.5">Registration Number</label>
-                <input
-                  type="text"
-                  value={registrationNumber}
-                  onChange={(e) => setRegistrationNumber(e.target.value)}
-                  placeholder="e.g. REG-101 (Leave blank to auto-generate)"
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-slate-650 outline-none transition-colors"
-                />
-              </div>
-
-              {/* Primary Guest Identity */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="relative">
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Guest Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={customerName}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setCustomerName(val);
-                      setCustomerId(null);
-                      fetchSuggestions(val, 'name');
-                    }}
-                    onBlur={() => setShowSuggestions(false)}
-                    placeholder="e.g. Samuel Jackson"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
-                  />
-                  {showSuggestions && suggestionField === 'name' && suggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
-                      {suggestions.map((cust) => (
-                        <div
-                          key={cust.id}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleSelectCustomer(cust);
-                          }}
-                          className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
-                        >
-                          <div className="flex justify-between items-start">
-                            <p className="font-semibold text-white text-xs">{cust.fullName}</p>
-                            <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
-                          </div>
-                          <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
-                            <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
-                            {cust.documents && cust.documents.length > 0 && (
-                              <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
-                                {cust.documents[0].idType}: {cust.documents[0].idNumber}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="relative">
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Mobile Number</label>
-                  <input
-                    type="tel"
-                    required
-                    value={mobileNumber}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setMobileNumber(val);
-                      setCustomerId(null);
-                      fetchSuggestions(val, 'mobile');
-                    }}
-                    onBlur={() => setShowSuggestions(false)}
-                    placeholder="e.g. 9876543210"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
-                  />
-                  {showSuggestions && suggestionField === 'mobile' && suggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
-                      {suggestions.map((cust) => (
-                        <div
-                          key={cust.id}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleSelectCustomer(cust);
-                          }}
-                          className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
-                        >
-                          <div className="flex justify-between items-start">
-                            <p className="font-semibold text-white text-xs">{cust.fullName}</p>
-                            <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
-                          </div>
-                          <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
-                            <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
-                            {cust.documents && cust.documents.length > 0 && (
-                              <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
-                                {cust.documents[0].idType}: {cust.documents[0].idNumber}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Guest Address details */}
-              <div className="bg-slate-950/45 p-4 rounded-xl border border-slate-850 space-y-3">
-                <span className="text-[10px] font-bold text-slate-455 uppercase tracking-wider flex items-center">
-                  <MapPin className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
-                  Address & Stay Details
-                </span>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-450 mb-1">Street Address</label>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Registration Number</label>
                   <input
                     type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="e.g. 123 Main St, Apt 4B"
-                    className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                    value={registrationNumber}
+                    onChange={(e) => setRegistrationNumber(e.target.value)}
+                    placeholder="e.g. REG-101 (Leave blank to auto-generate)"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-slate-650 outline-none transition-colors"
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">City</label>
+
+                {/* Primary Guest Identity */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Guest Full Name</label>
                     <input
                       type="text"
-                      list="cities-datalist-booking"
-                      value={city}
+                      required
+                      value={customerName}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setCity(val);
-                        const found = citiesData.find(c => c.name.toLowerCase() === val.trim().toLowerCase());
-                        if (found) {
-                          setState(found.state);
-                        }
+                        setCustomerName(val);
+                        setCustomerId(null);
+                        fetchSuggestions(val, 'name');
                       }}
-                      placeholder="e.g. Mumbai"
-                      className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                      onBlur={() => setShowSuggestions(false)}
+                      placeholder="e.g. Samuel Jackson"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
                     />
-                    <datalist id="cities-datalist-booking">
-                      {filteredCities.map((c) => (
-                        <option key={c} value={c} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">State</label>
-                    <input
-                      type="text"
-                      list="states-datalist-booking"
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      placeholder="e.g. Maharashtra"
-                      className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
-                    />
-                    <datalist id="states-datalist-booking">
-                      {indianStates.map((s) => (
-                        <option key={s} value={s} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">Zip/Pincode</label>
-                    <input
-                      type="text"
-                      value={pincode}
-                      onChange={(e) => setPincode(e.target.value)}
-                      placeholder="10001"
-                      className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-450 mb-1 flex items-center">
-                    <Globe className="w-3 h-3 mr-1 text-slate-500" />
-                    Nationality / Country
-                  </label>
-                  <input
-                    type="text"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    placeholder="e.g. Indian"
-                    className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Document/Images upload */}
-              <div className="bg-slate-950/45 p-4 rounded-xl border border-slate-850 space-y-4">
-                <span className="text-[10px] font-bold text-slate-455 uppercase tracking-wider flex items-center">
-                  <BookmarkCheck className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
-                  ID Proof & Images
-                </span>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Document Type</label>
-                    <select
-                      value={idType}
-                      onChange={(e) => setIdType(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
-                    >
-                      <option value="Aadhaar Card">Aadhaar Card</option>
-                      <option value="Passport">Passport</option>
-                      <option value="Driving License">Driving License</option>
-                      <option value="Voter ID">Voter ID</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Number</label>
-                    <input
-                      type="text"
-                      value={idNumber}
-                      onChange={(e) => setIdNumber(e.target.value)}
-                      placeholder="e.g. 1234-5678-9012"
-                      className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Front Image</label>
-                    <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-3 hover:border-slate-700 transition-colors">
-                      {frontImageUrl ? (
-                        <div className="w-full space-y-2 text-center">
-                          <img
-                            src={frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl}
-                            alt="ID Front"
-                            className="h-20 mx-auto rounded-lg object-cover border border-slate-805 cursor-zoom-in hover:opacity-90 transition-opacity"
-                            onClick={() => setPreviewImage(frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl)}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setFrontImageUrl('')}
-                            className="text-[10px] text-rose-400 hover:text-rose-355 transition-colors font-medium cursor-pointer"
-                          >
-                            Remove Image
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="w-full text-center py-2 flex flex-col items-center justify-center space-y-2">
-                          <span className="text-[10px] text-slate-400 block font-medium">
-                            {frontImageLoading ? 'Uploading...' : 'Select Front ID Image'}
-                          </span>
-                          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-colors">
-                            <Upload className="w-3 h-3 text-blue-500" />
-                            <span>Upload File</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                if (e.target.files && e.target.files[0]) {
-                                  handleFileUpload(e.target.files[0], 'documents', setFrontImageUrl, setFrontImageLoading);
-                                }
-                              }}
-                            />
-                          </label>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Back Image</label>
-                    <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-3 hover:border-slate-700 transition-colors">
-                      {backImageUrl ? (
-                        <div className="w-full space-y-2 text-center">
-                          <img
-                            src={backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl}
-                            alt="ID Back"
-                            className="h-20 mx-auto rounded-lg object-cover border border-slate-805 cursor-zoom-in hover:opacity-90 transition-opacity"
-                            onClick={() => setPreviewImage(backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl)}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setBackImageUrl('')}
-                            className="text-[10px] text-rose-400 hover:text-rose-355 transition-colors font-medium cursor-pointer"
-                          >
-                            Remove Image
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="w-full text-center py-2 flex flex-col items-center justify-center space-y-2">
-                          <span className="text-[10px] text-slate-400 block font-medium">
-                            {backImageLoading ? 'Uploading...' : 'Select Back ID Image'}
-                          </span>
-                          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-colors">
-                            <Upload className="w-3 h-3 text-blue-500" />
-                            <span>Upload File</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                if (e.target.files && e.target.files[0]) {
-                                  handleFileUpload(e.target.files[0], 'documents', setBackImageUrl, setBackImageLoading);
-                                }
-                              }}
-                            />
-                          </label>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-450 mb-1">Customer Photo (Passport Size)</label>
-                  <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-3 hover:border-slate-700 transition-colors">
-                    {photoUrl ? (
-                      <div className="w-full space-y-2 text-center flex flex-col items-center">
-                        <img
-                          src={photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl}
-                          alt="Customer Photo"
-                          className="h-20 w-20 rounded-full object-cover border border-slate-805 cursor-zoom-in hover:opacity-90 transition-opacity"
-                          onClick={() => setPreviewImage(photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setPhotoUrl('')}
-                          className="text-[10px] text-rose-400 hover:text-rose-355 transition-colors font-medium cursor-pointer"
-                        >
-                          Remove Photo
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="w-full text-center py-2 flex flex-col items-center justify-center space-y-2">
-                        <span className="text-[10px] text-slate-400 block font-medium">
-                          {photoLoading ? 'Uploading...' : 'Select Customer Photo'}
-                        </span>
-                        <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-colors">
-                          <Upload className="w-3 h-3 text-blue-500" />
-                          <span>Upload File</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                handleFileUpload(e.target.files[0], 'customers', setPhotoUrl, setPhotoLoading);
-                              }
+                    {showSuggestions && suggestionField === 'name' && suggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
+                        {suggestions.map((cust) => (
+                          <div
+                            key={cust.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleSelectCustomer(cust);
                             }}
-                          />
-                        </label>
+                            className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
+                          >
+                            <div className="flex justify-between items-start">
+                              <p className="font-semibold text-white text-xs">{cust.fullName}</p>
+                              <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
+                            </div>
+                            <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
+                              <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
+                              {cust.documents && cust.documents.length > 0 && (
+                                <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
+                                  {cust.documents[0].idType}: {cust.documents[0].idNumber}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Mobile Number</label>
+                    <input
+                      type="tel"
+                      required
+                      value={mobileNumber}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMobileNumber(val);
+                        setCustomerId(null);
+                        fetchSuggestions(val, 'mobile');
+                      }}
+                      onBlur={() => setShowSuggestions(false)}
+                      placeholder="e.g. 9876543210"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none"
+                    />
+                    {showSuggestions && suggestionField === 'mobile' && suggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-900">
+                        {suggestions.map((cust) => (
+                          <div
+                            key={cust.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleSelectCustomer(cust);
+                            }}
+                            className="p-3 hover:bg-slate-900 cursor-pointer transition-colors text-left"
+                          >
+                            <div className="flex justify-between items-start">
+                              <p className="font-semibold text-white text-xs">{cust.fullName}</p>
+                              <span className="text-[11px] text-slate-400 font-mono">{cust.mobileNumber}</span>
+                            </div>
+                            <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
+                              <span>{cust.city ? `${cust.city}, ${cust.state || ''}` : 'No address info'}</span>
+                              {cust.documents && cust.documents.length > 0 && (
+                                <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[9px] text-blue-400 border border-slate-800 font-mono">
+                                  {cust.documents[0].idType}: {cust.documents[0].idNumber}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
 
-              {/* Booking dates */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Check-In Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={checkInDate}
-                    onChange={(e) => setCheckInDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
-                  />
-                  {editingBooking && (editingBooking.status === 'CHECKED_IN' || editingBooking.status === 'CHECKED_OUT') && (
-                    <div className="mt-2.5 p-3.5 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-2 animate-fade-in">
-                      <div className="flex justify-between items-center">
-                        <label className="block text-[11px] font-semibold text-emerald-300 flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                          Actual Check-In Time
-                        </label>
-                        <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded">
-                          {formatTime12h(`${checkInDate}T${checkInTime}`)}
-                        </span>
-                      </div>
-                      <input
-                        type="time"
-                        required
-                        value={checkInTime}
-                        onChange={(e) => setCheckInTime(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3 text-xs text-white outline-none transition-colors"
-                      />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Check-Out Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={checkOutDate}
-                    onChange={(e) => setCheckOutDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
-                  />
-                  {editingBooking && editingBooking.status === 'CHECKED_OUT' && (
-                    <div className="mt-2.5 p-3.5 bg-blue-500/5 border border-blue-500/10 rounded-xl space-y-2 animate-fade-in">
-                      <div className="flex justify-between items-center">
-                        <label className="block text-[11px] font-semibold text-blue-300 flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-blue-400" />
-                          Actual Check-Out Time
-                        </label>
-                        <span className="text-[10px] text-blue-400 font-mono bg-blue-500/10 px-2 py-0.5 rounded">
-                          {formatTime12h(`${checkOutDate}T${checkOutTime}`)}
-                        </span>
-                      </div>
-                      <input
-                        type="time"
-                        required
-                        value={checkOutTime}
-                        onChange={(e) => setCheckOutTime(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3 text-xs text-white outline-none transition-colors"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Room assignment & guests */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="relative" ref={dropdownRef}>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Assign Rooms</label>
-                  <div
-                    onClick={() => setRoomDropdownOpen(!roomDropdownOpen)}
-                    className="w-full min-h-[44px] bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none cursor-pointer flex items-center justify-between flex-wrap gap-1.5"
-                  >
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedRoomIds.length > 0 ? (
-                        selectedRoomIds.map((id) => {
-                          const room = selectRooms.find((r) => r.id === id);
-                          return (
-                            <span
-                              key={id}
-                              className="inline-flex items-center px-2 py-0.5 rounded bg-blue-600/20 border border-blue-500/30 text-xs font-semibold text-blue-300"
-                            >
-                              Room {room?.roomNumber || id}
-                              {!editingBooking && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedRoomIds(selectedRoomIds.filter((x) => x !== id));
-                                  }}
-                                  className="ml-1 text-blue-400 hover:text-blue-200 focus:outline-none"
-                                >
-                                  &times;
-                                </button>
-                              )}
-                            </span>
-                          );
-                        })
-                      ) : (
-                        <span className="text-slate-500 text-sm">Select Rooms...</span>
-                      )}
-                    </div>
-                    <span className="text-slate-400 text-xs">&#9662;</span>
+                {/* Guest Address details */}
+                <div className="bg-slate-950/45 p-4 rounded-xl border border-slate-850 space-y-3">
+                  <span className="text-[10px] font-bold text-slate-455 uppercase tracking-wider flex items-center">
+                    <MapPin className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                    Address & Stay Details
+                  </span>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">Street Address</label>
+                    <input
+                      type="text"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="e.g. 123 Main St, Apt 4B"
+                      className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                    />
                   </div>
-                  {roomDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto p-2 space-y-1">
-                      {editingBooking ? (
-                        selectRooms.map((room) => {
-                          const isSelected = selectedRoomIds.includes(room.id);
-                          return (
-                            <label
-                              key={room.id}
-                              className="flex items-center space-x-2.5 p-2 rounded-lg hover:bg-slate-900 cursor-pointer text-slate-350 hover:text-white transition-colors"
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-450 mb-1">City</label>
+                      <input
+                        type="text"
+                        list="cities-datalist-booking"
+                        value={city}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCity(val);
+                          const found = citiesData.find(c => c.name.toLowerCase() === val.trim().toLowerCase());
+                          if (found) {
+                            setState(found.state);
+                          }
+                        }}
+                        placeholder="e.g. Mumbai"
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                      />
+                      <datalist id="cities-datalist-booking">
+                        {filteredCities.map((c) => (
+                          <option key={c} value={c} />
+                        ))}
+                      </datalist>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-450 mb-1">State</label>
+                      <input
+                        type="text"
+                        list="states-datalist-booking"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        placeholder="e.g. Maharashtra"
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                      />
+                      <datalist id="states-datalist-booking">
+                        {indianStates.map((s) => (
+                          <option key={s} value={s} />
+                        ))}
+                      </datalist>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-450 mb-1">Zip/Pincode</label>
+                      <input
+                        type="text"
+                        value={pincode}
+                        onChange={(e) => setPincode(e.target.value)}
+                        placeholder="10001"
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-450 mb-1 flex items-center">
+                      <Globe className="w-3 h-3 mr-1 text-slate-500" />
+                      Nationality / Country
+                    </label>
+                    <input
+                      type="text"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      placeholder="e.g. Indian"
+                      className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Document/Images upload */}
+                <div className="bg-slate-950/45 p-4 rounded-xl border border-slate-850 space-y-4">
+                  <span className="text-[10px] font-bold text-slate-455 uppercase tracking-wider flex items-center">
+                    <BookmarkCheck className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                    ID Proof & Images
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Document Type</label>
+                      <select
+                        value={idType}
+                        onChange={(e) => setIdType(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                      >
+                        <option value="Aadhaar Card">Aadhaar Card</option>
+                        <option value="Passport">Passport</option>
+                        <option value="Driving License">Driving License</option>
+                        <option value="Voter ID">Voter ID</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Number</label>
+                      <input
+                        type="text"
+                        value={idNumber}
+                        onChange={(e) => setIdNumber(e.target.value)}
+                        placeholder="e.g. 1234-5678-9012"
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg py-1.5 px-3 text-xs text-white outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Front Image</label>
+                      <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-3 hover:border-slate-700 transition-colors">
+                        {frontImageUrl ? (
+                          <div className="w-full space-y-2 text-center">
+                            <img
+                              src={frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl}
+                              alt="ID Front"
+                              className="h-20 mx-auto rounded-lg object-cover border border-slate-805 cursor-zoom-in hover:opacity-90 transition-opacity"
+                              onClick={() => setPreviewImage(frontImageUrl.startsWith('/') ? `${getBackendUrl()}${frontImageUrl}` : frontImageUrl)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setFrontImageUrl('')}
+                              className="text-[10px] text-rose-400 hover:text-rose-355 transition-colors font-medium cursor-pointer"
                             >
+                              Remove Image
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-full text-center py-2 flex flex-col items-center justify-center space-y-2">
+                            <span className="text-[10px] text-slate-400 block font-medium">
+                              {frontImageLoading ? 'Uploading...' : 'Select Front ID Image'}
+                            </span>
+                            <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-colors">
+                              <Upload className="w-3 h-3 text-blue-500" />
+                              <span>Upload File</span>
                               <input
-                                type="radio"
-                                name="single-room-select"
-                                checked={isSelected}
-                                onChange={() => {
-                                  setSelectedRoomIds([room.id]);
-                                  setRoomDropdownOpen(false);
-                                }}
-                                className="w-4 h-4 rounded-full border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
-                              />
-                              <span className="text-xs font-medium">
-                                Room {room.roomNumber} ({room.roomType}) {(room as any).status ? `[${(room as any).status}]` : ''}
-                              </span>
-                            </label>
-                          );
-                        })
-                      ) : selectRooms.length > 0 ? (
-                        selectRooms.map((room) => {
-                          const isSelected = selectedRoomIds.includes(room.id);
-                          return (
-                            <label
-                              key={room.id}
-                              className="flex items-center space-x-2.5 p-2 rounded-lg hover:bg-slate-900 cursor-pointer text-slate-350 hover:text-white transition-colors"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => {
-                                  if (isSelected) {
-                                    setSelectedRoomIds(selectedRoomIds.filter((x) => x !== room.id));
-                                  } else {
-                                    setSelectedRoomIds([...selectedRoomIds, room.id]);
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    handleFileUpload(e.target.files[0], 'documents', setFrontImageUrl, setFrontImageLoading);
                                   }
                                 }}
-                                className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
                               />
-                              <span className="text-xs font-medium">
-                                Room {room.roomNumber} ({room.roomType})
-                              </span>
                             </label>
-                          );
-                        })
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-450 mb-1">ID Back Image</label>
+                      <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-3 hover:border-slate-700 transition-colors">
+                        {backImageUrl ? (
+                          <div className="w-full space-y-2 text-center">
+                            <img
+                              src={backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl}
+                              alt="ID Back"
+                              className="h-20 mx-auto rounded-lg object-cover border border-slate-805 cursor-zoom-in hover:opacity-90 transition-opacity"
+                              onClick={() => setPreviewImage(backImageUrl.startsWith('/') ? `${getBackendUrl()}${backImageUrl}` : backImageUrl)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setBackImageUrl('')}
+                              className="text-[10px] text-rose-400 hover:text-rose-355 transition-colors font-medium cursor-pointer"
+                            >
+                              Remove Image
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-full text-center py-2 flex flex-col items-center justify-center space-y-2">
+                            <span className="text-[10px] text-slate-400 block font-medium">
+                              {backImageLoading ? 'Uploading...' : 'Select Back ID Image'}
+                            </span>
+                            <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-colors">
+                              <Upload className="w-3 h-3 text-blue-500" />
+                              <span>Upload File</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    handleFileUpload(e.target.files[0], 'documents', setBackImageUrl, setBackImageLoading);
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-450 mb-1">Customer Photo (Passport Size)</label>
+                    <div className="relative flex flex-col items-center justify-center border border-dashed border-slate-800 bg-slate-950/40 rounded-xl p-3 hover:border-slate-700 transition-colors">
+                      {photoUrl ? (
+                        <div className="w-full space-y-2 text-center flex flex-col items-center">
+                          <img
+                            src={photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl}
+                            alt="Customer Photo"
+                            className="h-20 w-20 rounded-full object-cover border border-slate-805 cursor-zoom-in hover:opacity-90 transition-opacity"
+                            onClick={() => setPreviewImage(photoUrl.startsWith('/') ? `${getBackendUrl()}${photoUrl}` : photoUrl)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setPhotoUrl('')}
+                            className="text-[10px] text-rose-400 hover:text-rose-355 transition-colors font-medium cursor-pointer"
+                          >
+                            Remove Photo
+                          </button>
+                        </div>
                       ) : (
-                        <div className="p-2 text-xs text-slate-500 text-center">No available rooms</div>
+                        <div className="w-full text-center py-2 flex flex-col items-center justify-center space-y-2">
+                          <span className="text-[10px] text-slate-400 block font-medium">
+                            {photoLoading ? 'Uploading...' : 'Select Customer Photo'}
+                          </span>
+                          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:border-slate-700 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-colors">
+                            <Upload className="w-3 h-3 text-blue-500" />
+                            <span>Upload File</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  handleFileUpload(e.target.files[0], 'customers', setPhotoUrl, setPhotoLoading);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Number of Guests</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={numberOfGuests}
-                    onChange={(e) => setNumberOfGuests(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
-                  />
-                </div>
-              </div>
 
-              {/* Financial values & status */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                 <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Stay Cost/Night (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    value={price}
-                    onChange={(e) => setPrice(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
-                  />
+                {/* Booking dates */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Check-In Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={checkInDate}
+                      onChange={(e) => setCheckInDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
+                    />
+                    {editingBooking && (editingBooking.status === 'CHECKED_IN' || editingBooking.status === 'CHECKED_OUT') && (
+                      <div className="mt-2.5 p-3.5 bg-emerald-500/5 border border-emerald-500/10 rounded-xl space-y-2 animate-fade-in">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-[11px] font-semibold text-emerald-300 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                            Actual Check-In Time
+                          </label>
+                          <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded">
+                            {formatTime12h(`${checkInDate}T${checkInTime}`)}
+                          </span>
+                        </div>
+                        <input
+                          type="time"
+                          required
+                          value={checkInTime}
+                          onChange={(e) => setCheckInTime(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3 text-xs text-white outline-none transition-colors"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Check-Out Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={checkOutDate}
+                      onChange={(e) => setCheckOutDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
+                    />
+                    {editingBooking && editingBooking.status === 'CHECKED_OUT' && (
+                      <div className="mt-2.5 p-3.5 bg-blue-500/5 border border-blue-500/10 rounded-xl space-y-2 animate-fade-in">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-[11px] font-semibold text-blue-300 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-blue-400" />
+                            Actual Check-Out Time
+                          </label>
+                          <span className="text-[10px] text-blue-400 font-mono bg-blue-500/10 px-2 py-0.5 rounded">
+                            {formatTime12h(`${checkOutDate}T${checkOutTime}`)}
+                          </span>
+                        </div>
+                        <input
+                          type="time"
+                          required
+                          value={checkOutTime}
+                          onChange={(e) => setCheckOutTime(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3 text-xs text-white outline-none transition-colors"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Advance Paid (₹)</label>
-                  <input
-                    type="number"
-                    value={advancePayment}
-                    onChange={(e) => setAdvancePayment(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Reservation Status</label>
-                  <select
-                    disabled={true}
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 disabled:opacity-70 disabled:bg-slate-955 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
-                  >
-                    <option value="CONFIRMED">Booked</option>
-                    <option value="CHECKED_IN">Checked In</option>
-                    <option value="CHECKED_OUT">Checked Out</option>
-                    <option value="CANCELLED">Cancelled</option>
-                  </select>
-                </div>
-              </div>
 
-              {/* Stay Notes */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-450 mb-1.5">Stay / Reservation Notes</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any special requests or instructions..."
-                  rows={2}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
-                />
+                {/* Room assignment & guests */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="relative" ref={dropdownRef}>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Assign Rooms</label>
+                    <div
+                      onClick={() => setRoomDropdownOpen(!roomDropdownOpen)}
+                      className="w-full min-h-[44px] bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2.5 px-3.5 text-sm text-white outline-none cursor-pointer flex items-center justify-between flex-wrap gap-1.5"
+                    >
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedRoomIds.length > 0 ? (
+                          selectedRoomIds.map((id) => {
+                            const room = selectRooms.find((r) => r.id === id);
+                            return (
+                              <span
+                                key={id}
+                                className="inline-flex items-center px-2 py-0.5 rounded bg-blue-600/20 border border-blue-500/30 text-xs font-semibold text-blue-300"
+                              >
+                                Room {room?.roomNumber || id}
+                                {!editingBooking && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedRoomIds(selectedRoomIds.filter((x) => x !== id));
+                                    }}
+                                    className="ml-1 text-blue-400 hover:text-blue-200 focus:outline-none"
+                                  >
+                                    &times;
+                                  </button>
+                                )}
+                              </span>
+                            );
+                          })
+                        ) : (
+                          <span className="text-slate-500 text-sm">Select Rooms...</span>
+                        )}
+                      </div>
+                      <span className="text-slate-400 text-xs">&#9662;</span>
+                    </div>
+                    {roomDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-[99] bg-slate-950 border border-slate-850 rounded-xl shadow-2xl max-h-60 overflow-y-auto p-2 space-y-1">
+                        {editingBooking ? (
+                          selectRooms.map((room) => {
+                            const isSelected = selectedRoomIds.includes(room.id);
+                            return (
+                              <label
+                                key={room.id}
+                                className="flex items-center space-x-2.5 p-2 rounded-lg hover:bg-slate-900 cursor-pointer text-slate-350 hover:text-white transition-colors"
+                              >
+                                <input
+                                  type="radio"
+                                  name="single-room-select"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    setSelectedRoomIds([room.id]);
+                                    setRoomDropdownOpen(false);
+                                  }}
+                                  className="w-4 h-4 rounded-full border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-xs font-medium">
+                                  Room {room.roomNumber} ({room.roomType}) {(room as any).status ? `[${(room as any).status}]` : ''}
+                                </span>
+                              </label>
+                            );
+                          })
+                        ) : selectRooms.length > 0 ? (
+                          selectRooms.map((room) => {
+                            const isSelected = selectedRoomIds.includes(room.id);
+                            return (
+                              <label
+                                key={room.id}
+                                className="flex items-center space-x-2.5 p-2 rounded-lg hover:bg-slate-900 cursor-pointer text-slate-350 hover:text-white transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    if (isSelected) {
+                                      setSelectedRoomIds(selectedRoomIds.filter((x) => x !== room.id));
+                                    } else {
+                                      setSelectedRoomIds([...selectedRoomIds, room.id]);
+                                    }
+                                  }}
+                                  className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-xs font-medium">
+                                  Room {room.roomNumber} ({room.roomType})
+                                </span>
+                              </label>
+                            );
+                          })
+                        ) : (
+                          <div className="p-2 text-xs text-slate-500 text-center">No available rooms</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Number of Guests</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={numberOfGuests}
+                      onChange={(e) => setNumberOfGuests(Number(e.target.value))}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Financial values & status */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Stay Cost/Night (₹)</label>
+                    <input
+                      type="number"
+                      required
+                      value={price}
+                      onChange={(e) => setPrice(Number(e.target.value))}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Advance Paid (₹)</label>
+                    <input
+                      type="number"
+                      value={advancePayment}
+                      onChange={(e) => setAdvancePayment(Number(e.target.value))}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-450 mb-1.5">Reservation Status</label>
+                    <select
+                      disabled={true}
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 disabled:opacity-70 disabled:bg-slate-955 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
+                    >
+                      <option value="CONFIRMED">Booked</option>
+                      <option value="CHECKED_IN">Checked In</option>
+                      <option value="CHECKED_OUT">Checked Out</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Stay Notes */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-450 mb-1.5">Stay / Reservation Notes</label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Any special requests or instructions..."
+                    rows={2}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl py-2 px-3.5 text-sm text-white outline-none"
+                  />
+                </div>
               </div>
-            </div>
 
               {/* Action buttons */}
               <div className="flex justify-end space-x-3 pt-4 border-t border-slate-800 mt-6">

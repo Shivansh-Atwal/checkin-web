@@ -201,9 +201,16 @@ const PreviousStay: React.FC = () => {
       const next = { ...prev };
       let changed = false;
       selectedRoomIds.forEach((id) => {
-        if (next[id] === undefined) {
-          next[id] = priceCost;
-          changed = true;
+        if (selectedRoomIds.length === 1) {
+          if (next[id] !== priceCost) {
+            next[id] = priceCost;
+            changed = true;
+          }
+        } else {
+          if (next[id] === undefined) {
+            next[id] = priceCost;
+            changed = true;
+          }
         }
       });
       Object.keys(next).forEach((id) => {
@@ -1067,7 +1074,7 @@ const PreviousStay: React.FC = () => {
         </div>
 
         {/* Stay Billing Summary */}
-        
+
 
         {selectedRoomIds.length > 1 && (
           <div className="border-t border-slate-800/60 pt-4 space-y-3.5">

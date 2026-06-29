@@ -113,7 +113,7 @@ const CheckIn: React.FC = () => {
     setState(customer.state || '');
     setCountry(customer.country || 'Indian');
     setPincode(customer.pincode || '');
-    
+
     if (customer.documents && customer.documents.length > 0) {
       const doc = customer.documents[0];
       setIdType(doc.idType || 'Aadhaar Card');
@@ -128,7 +128,7 @@ const CheckIn: React.FC = () => {
       setBackImageUrl('');
       setPhotoUrl('');
     }
-    
+
     setShowSuggestions(false);
     setSuggestions([]);
   };
@@ -448,9 +448,16 @@ const CheckIn: React.FC = () => {
       const next = { ...prev };
       let changed = false;
       selectedRoomIds.forEach((id) => {
-        if (next[id] === undefined) {
-          next[id] = priceCost;
-          changed = true;
+        if (selectedRoomIds.length === 1) {
+          if (next[id] !== priceCost) {
+            next[id] = priceCost;
+            changed = true;
+          }
+        } else {
+          if (next[id] === undefined) {
+            next[id] = priceCost;
+            changed = true;
+          }
         }
       });
       Object.keys(next).forEach((id) => {
@@ -1251,10 +1258,10 @@ const CheckIn: React.FC = () => {
               ) : (
                 'Confirm Arrival & Check-In'
               )}
-          </button>
-        </div>
-      </form>
-    </div>
+            </button>
+          </div>
+        </form>
+      </div>
 
       {/* Camera Capture Modal */}
       {cameraOpen && (
