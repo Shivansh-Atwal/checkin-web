@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
-import { Map, TrendingUp, Calendar } from 'lucide-react';
+import { Map, TrendingUp, Calendar, Bed, Users, ClipboardList } from 'lucide-react';
 import { formatDate } from '../utils/dateFormatter';
 
 interface StateWiseSummary {
@@ -11,9 +11,17 @@ interface StateWiseSummary {
   bednights: number;
 }
 
+interface TodaySummary {
+  roomsUsed: number;
+  bookingsCount: number;
+  peopleStayed: number;
+  todayRevenue: number;
+}
+
 interface ReportsData {
   stateWiseData: StateWiseSummary[];
   detailedRecords?: any[];
+  todaySummary?: TodaySummary;
 }
 
 
@@ -116,6 +124,65 @@ const Reports: React.FC = () => {
         <div className="text-center py-20 text-slate-500 font-bold text-sm">Aggregating analytics data...</div>
       ) : (
         <div className="space-y-6">
+          {/* Daily Report Summary Cards */}
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <div className="flex items-center space-x-2.5 border-b border-slate-800 pb-3">
+              <ClipboardList className="w-5 h-5 text-blue-400" />
+              <div>
+                <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">Today's Daily Report Summary</h3>
+                <p className="text-xs text-slate-450 mt-0.5">Summary of all metrics for today's date ({formatDate(new Date().toISOString())})</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Rooms Occupied */}
+              <div className="bg-slate-950/40 border border-slate-850 p-4 rounded-xl flex items-center">
+                <div className="p-3 bg-blue-500/10 text-blue-400 rounded-lg mr-4">
+                  <Bed className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Rooms Occupied</span>
+                  <span className="text-xl font-extrabold text-white">{reportData.todaySummary?.roomsUsed || 0} Rooms</span>
+                </div>
+              </div>
+
+              {/* Active Bookings */}
+              <div className="bg-slate-950/40 border border-slate-850 p-4 rounded-xl flex items-center">
+                <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-lg mr-4">
+                  <ClipboardList className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">Active Stays</span>
+                  <span className="text-xl font-extrabold text-white">{reportData.todaySummary?.bookingsCount || 0} Bookings</span>
+                </div>
+              </div>
+
+              {/* People Stayed */}
+              <div className="bg-slate-950/40 border border-slate-850 p-4 rounded-xl flex items-center">
+                <div className="p-3 bg-amber-500/10 text-amber-400 rounded-lg mr-4">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Guests Stayed</span>
+                  <span className="text-xl font-extrabold text-white">{reportData.todaySummary?.peopleStayed || 0} Guests</span>
+                </div>
+              </div>
+
+              {/* Today's Revenue */}
+              <div className="bg-slate-950/40 border border-slate-850 p-4 rounded-xl flex items-center">
+                <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg mr-4">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-emerald-450 uppercase font-bold tracking-wider block">Today's Revenue</span>
+                  <span className="text-xl font-extrabold text-emerald-400">
+                    ₹{(reportData.todaySummary?.todayRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Revenue Section */}
           {canReadPayments ? (
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
