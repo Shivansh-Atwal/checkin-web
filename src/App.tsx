@@ -1,6 +1,8 @@
 import React from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
+import { useNetwork } from './hooks/useNetwork';
+import { SyncManager } from './services/SyncManager';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Rooms from './pages/Rooms';
@@ -33,6 +35,7 @@ import {
 
 const PrivateLayout: React.FC = () => {
   const { user, logout, hasPermission } = useAuthStore();
+  const { isOnline, pendingChangesCount } = useNetwork();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
@@ -104,6 +107,27 @@ const PrivateLayout: React.FC = () => {
     );
   };
 
+  const renderSyncBanner = () => {
+    if (!isOnline) {
+      return (
+        <div className="bg-amber-600/90 backdrop-blur-sm text-white px-4 py-2 text-xs font-bold text-center flex items-center justify-center sticky top-0 z-50">
+          <span className="w-2 h-2 rounded-full bg-white mr-2 animate-ping shrink-0"></span>
+          Offline Mode — {pendingChangesCount} changes queued locally
+        </div>
+      );
+    }
+
+    if (pendingChangesCount > 0) {
+      return (
+        <div className="bg-blue-600/90 backdrop-blur-sm text-white px-4 py-2 text-xs font-bold text-center flex items-center justify-center sticky top-0 z-50 animate-pulse">
+          Syncing — Uploading {pendingChangesCount} pending changes...
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="flex min-h-screen md:h-screen md:overflow-hidden bg-slate-950 text-slate-100">
       {/* Sidebar - Desktop */}
@@ -164,7 +188,8 @@ const PrivateLayout: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 min-h-screen flex flex-col md:h-screen md:overflow-y-auto">
+      <main className="flex-1 min-h-screen flex flex-col md:h-screen md:overflow-y-auto pb-16 md:pb-0">
+        {renderSyncBanner()}
         <header className="h-16 border-b border-slate-800 flex items-center justify-between px-4 md:px-8 bg-slate-900/40 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center">
             {/* Hamburger button for mobile */}
@@ -179,9 +204,9 @@ const PrivateLayout: React.FC = () => {
             </h1>
           </div>
           <div className="flex items-center text-xs text-slate-400 bg-slate-850 px-3 py-1.5 rounded-lg border border-slate-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-            <span className="hidden sm:inline">System Live (PostgreSQL)</span>
-            <span className="sm:hidden">Live</span>
+            <span className={`w-2 h-2 rounded-full mr-2 ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+            <span className="hidden sm:inline">{isOnline ? 'System Live (PostgreSQL)' : 'Offline Local Mode'}</span>
+            <span className="sm:hidden">{isOnline ? 'Live' : 'Offline'}</span>
           </div>
         </header>
         <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
@@ -202,12 +227,59 @@ const PrivateLayout: React.FC = () => {
           </Routes>
         </div>
       </main>
+
+      {/* Bottom Navigation Bar - Mobile Native Style */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex justify-around items-center z-40 px-2 pb-safe">
+        {navItems.slice(0, 5).map((item) => {
+          if (!hasPermission(item.permission)) return null;
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+
+          return (
+            <Link
+              key={item.label}
+              to={item.path}
+              className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-colors ${
+                isActive ? 'text-blue-500 font-bold' : 'text-slate-500'
+              }`}
+            >
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="text-[9px] mt-1 truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 };
 
 const App: React.FC = () => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isInitializing, initialize } = useAuthStore();
+  const { isOnline } = useNetwork();
+
+  React.useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Synchronizer triggers: run sync Push and Pull automatically when online
+  React.useEffect(() => {
+    if (isOnline && isAuthenticated) {
+      SyncManager.syncAll();
+      const interval = setInterval(() => {
+        SyncManager.syncAll();
+      }, 15000); // 15s interval background polling
+      return () => clearInterval(interval);
+    }
+  }, [isOnline, isAuthenticated]);
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+        <p className="text-slate-400 text-xs tracking-widest font-mono">LOADING HOTELFLOW...</p>
+      </div>
+    );
+  }
 
   return (
     <Routes>

@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { db } from '../db/db';
+import { enqueueOperation, applyOptimisticUpdate } from '../db/offlineQueue';
 
 export const getBackendUrl = (): string => {
   const envApiUrl = import.meta.env.VITE_API_URL || 'https://checkin-backend-70km.onrender.com/api';
@@ -20,6 +22,47 @@ export const getBackendUrl = (): string => {
   return envApiUrl.replace(/\/api$/, '').replace(/\/api\/$/, '');
 };
 
+const resolveLocalGet = async (url: string): Promise<any> => {
+  const cleanUrl = url.split('?')[0];
+
+  if (cleanUrl.endsWith('/rooms')) {
+    return await db.rooms.toArray();
+  }
+  if (cleanUrl.includes('/rooms/')) {
+    const id = cleanUrl.split('/').pop() || '';
+    return await db.rooms.get(id);
+  }
+  if (cleanUrl.endsWith('/customers')) {
+    return await db.customers.toArray();
+  }
+  if (cleanUrl.includes('/customers/')) {
+    const id = cleanUrl.split('/').pop() || '';
+    return await db.customers.get(id);
+  }
+  if (cleanUrl.endsWith('/bookings')) {
+    return await db.bookings.toArray();
+  }
+  if (cleanUrl.includes('/bookings/')) {
+    const id = cleanUrl.split('/').pop() || '';
+    return await db.bookings.get(id);
+  }
+  if (cleanUrl.endsWith('/checkins') || cleanUrl.endsWith('/check-in')) {
+    return await db.checkins.toArray();
+  }
+  if (cleanUrl.includes('/checkins/') || cleanUrl.includes('/check-in/')) {
+    const id = cleanUrl.split('/').pop() || '';
+    return await db.checkins.get(id);
+  }
+  if (cleanUrl.endsWith('/inventory')) {
+    return await db.inventory.toArray();
+  }
+  if (cleanUrl.endsWith('/auditlogs') || cleanUrl.endsWith('/logs')) {
+    return await db.auditlogs.toArray();
+  }
+
+  return [];
+};
+
 const api = axios.create({
   baseURL: `${getBackendUrl()}/api`,
   headers: {
@@ -29,7 +72,7 @@ const api = axios.create({
 
 let refreshPromise: Promise<string> | null = null;
 
-// Automatically inject Authorization headers and perform proactive silent refreshes
+// Inject Headers, handle proactive silent token refreshes, and intercept offline state queries
 api.interceptors.request.use(
   async (config) => {
     const tenantId = localStorage.getItem('tenantId') || 'public';
@@ -51,8 +94,8 @@ api.interceptors.request.use(
             .join('')
         );
         const payload = JSON.parse(jsonPayload);
-        
-        // Proactively refresh if access token expires within 30 seconds
+
+        // Proactively refresh if token expires within 30 seconds
         if (payload.exp && payload.exp * 1000 < Date.now() + 30 * 1000) {
           if (refreshToken) {
             if (!refreshPromise) {
@@ -92,6 +135,53 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Intercept requests if offline
+    const isOnline = navigator.onLine;
+    if (!isOnline) {
+      const { url, method, data } = config;
+      const cleanUrl = url || '';
+
+      if (method === 'get' || method === 'GET') {
+        console.log(`[Offline API] Mocking GET from IndexedDB cache: ${cleanUrl}`);
+        const localData = await resolveLocalGet(cleanUrl);
+        config.adapter = async () => {
+          return {
+            data: { success: true, data: localData },
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config,
+          };
+        };
+      } else {
+        console.log(`[Offline API] Mocking Mutation to Sync Queue: ${method} ${cleanUrl}`);
+        const uniqueId = 'client_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        let opType: 'CREATE' | 'UPDATE' | 'DELETE' = 'CREATE';
+        if (method === 'put' || method === 'PUT') opType = 'UPDATE';
+        if (method === 'delete' || method === 'DELETE') opType = 'DELETE';
+
+        await enqueueOperation(opType, cleanUrl, method?.toUpperCase() as any, data, uniqueId);
+        await applyOptimisticUpdate({
+          operationType: opType,
+          endpoint: cleanUrl,
+          method: method?.toUpperCase() as any,
+          payload: data,
+          uniqueSyncId: uniqueId,
+        });
+
+        config.adapter = async () => {
+          return {
+            data: { success: true, message: 'Offline request enqueued.', data: { id: uniqueId, ...data } },
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config,
+          };
+        };
+      }
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -153,7 +243,7 @@ api.interceptors.response.use(
           if (res.data && res.data.success) {
             const newAccessToken = res.data.data.accessToken;
             const user = useAuthStore.getState().user;
-            
+
             if (user) {
               useAuthStore.getState().login(user, newAccessToken, refreshToken);
             }

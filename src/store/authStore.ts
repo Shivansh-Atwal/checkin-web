@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { StorageManager } from '../utils/storage';
 
 export interface UserProfile {
   id: string;
@@ -13,43 +14,60 @@ interface AuthState {
   refreshToken: string | null;
   user: UserProfile | null;
   isAuthenticated: boolean;
-  login: (user: UserProfile, token: string, refreshToken: string) => void;
-  logout: () => void;
+  isInitializing: boolean;
+  initialize: () => Promise<void>;
+  login: (user: UserProfile, token: string, refreshToken: string) => Promise<void>;
+  logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
-  // Load initial state from localStorage if present
-  const storedToken = localStorage.getItem('token');
-  const storedRefreshToken = localStorage.getItem('refreshToken');
-  const storedUser = localStorage.getItem('user');
-
-  let parsedUser: UserProfile | null = null;
-  if (storedUser) {
-    try {
-      parsedUser = JSON.parse(storedUser);
-    } catch {
-      localStorage.removeItem('user');
-    }
-  }
-
   return {
-    token: storedToken,
-    refreshToken: storedRefreshToken,
-    user: parsedUser,
-    isAuthenticated: !!storedToken && !!parsedUser,
+    token: null,
+    refreshToken: null,
+    user: null,
+    isAuthenticated: false,
+    isInitializing: true,
 
-    login: (user, token, refreshToken) => {
-      localStorage.setItem('token', token);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('user', JSON.stringify(user));
+    initialize: async () => {
+      try {
+        const storedToken = await StorageManager.getItem('token');
+        const storedRefreshToken = await StorageManager.getItem('refreshToken');
+        const storedUser = await StorageManager.getItem('user');
+
+        let parsedUser: UserProfile | null = null;
+        if (storedUser) {
+          try {
+            parsedUser = JSON.parse(storedUser);
+          } catch {
+            await StorageManager.removeItem('user');
+          }
+        }
+
+        set({
+          token: storedToken,
+          refreshToken: storedRefreshToken,
+          user: parsedUser,
+          isAuthenticated: !!storedToken && !!parsedUser,
+          isInitializing: false,
+        });
+      } catch (err) {
+        console.error('Failed to initialize auth store:', err);
+        set({ isInitializing: false });
+      }
+    },
+
+    login: async (user, token, refreshToken) => {
+      await StorageManager.setItem('token', token);
+      await StorageManager.setItem('refreshToken', refreshToken);
+      await StorageManager.setItem('user', JSON.stringify(user));
       set({ user, token, refreshToken, isAuthenticated: true });
     },
 
-    logout: () => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+    logout: async () => {
+      await StorageManager.removeItem('token');
+      await StorageManager.removeItem('refreshToken');
+      await StorageManager.removeItem('user');
       set({ user: null, token: null, refreshToken: null, isAuthenticated: false });
     },
 
