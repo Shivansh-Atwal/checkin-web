@@ -158,9 +158,9 @@ input, select, textarea {
 }
 
 /* Force all text inputs, textareas, and dropdown selections to render in uppercase */
-input[type="text"]:not([type="email"]):not([name*="email"]), 
-textarea, 
-select {
+input[type="text"]:not([type="email"]):not([name*="email"]):not(.normal-case), 
+textarea:not(.normal-case), 
+select:not(.normal-case) {
   text-transform: uppercase !important;
 }
 

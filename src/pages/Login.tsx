@@ -146,7 +146,7 @@ const Login: React.FC = () => {
                 value={tenantId}
                 onChange={(e) => setTenantId(e.target.value)}
                 placeholder={mode === 'login' ? 'e.g. ritz (Leave blank for default)' : 'e.g. ritz (alphanumeric only)'}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl py-2.5 px-3.5 pl-11 text-sm text-white placeholder-slate-600 outline-none transition-colors"
+                className="w-full normal-case bg-slate-950 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl py-2.5 px-3.5 pl-11 text-sm text-white placeholder-slate-600 outline-none transition-colors"
               />
             </div>
           </div>
