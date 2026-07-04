@@ -159,6 +159,9 @@ export class SyncManager {
           if (item.method === 'POST') {
             payload = this.bookingRepo.toApiPayload(booking);
             endpoint = '/stay/checkin/walkin';
+          } else if ((item.method === 'PUT' || item.method === 'PATCH') && booking.backendId) {
+            payload = this.bookingRepo.toApiPayload(booking);
+            endpoint = `/bookings/${booking.backendId}`;
           }
         }
 
@@ -169,13 +172,13 @@ export class SyncManager {
             response = await this.api.post<BackendBookingResponse>(endpoint, payload);
             break;
           case 'PUT':
-            response = await this.api.put<BackendBookingResponse>(item.endpoint, payload);
+            response = await this.api.put<BackendBookingResponse>(endpoint, payload);
             break;
           case 'PATCH':
-            response = await this.api.patch<BackendBookingResponse>(item.endpoint, payload);
+            response = await this.api.patch<BackendBookingResponse>(endpoint, payload);
             break;
           case 'DELETE':
-            response = await this.api.delete(item.endpoint);
+            response = await this.api.delete(endpoint);
             break;
         }
 

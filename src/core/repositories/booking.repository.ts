@@ -520,6 +520,8 @@ export class BookingRepository {
           : 'CONFIRMED';
 
     return {
+      id: booking.backendId ?? undefined,
+      offlineId: booking.id,
       clientId: booking.id,
       bookingStatus: booking.bookingStatus,
       status,
