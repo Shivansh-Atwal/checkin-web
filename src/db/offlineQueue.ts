@@ -61,16 +61,110 @@ export const applyOptimisticUpdate = async (op: Omit<QueuedOperation, 'id' | 'ti
         const id = endpoint.split('/')[2];
         await db.bookings.delete(id);
       }
-    } else if (endpoint.startsWith('/checkins') || endpoint.startsWith('/check-in')) {
+    } else if (
+      endpoint.startsWith('/checkins') ||
+      endpoint.startsWith('/check-in') ||
+      endpoint.startsWith('/stay/checkin')
+    ) {
       if (operationType === 'CREATE') {
-        await db.checkins.put({ ...payload, id: uniqueSyncId, status: 'ACTIVE' });
+        const checkInTime =
+          payload.checkInTime ||
+          (payload.arrivalDate && payload.arrivalTime
+            ? new Date(`${payload.arrivalDate}T${payload.arrivalTime}`).toISOString()
+            : new Date().toISOString());
+        const roomIds: string[] = Array.isArray(payload.roomIds)
+          ? payload.roomIds
+          : payload.roomId
+            ? [payload.roomId]
+            : [];
+        const customerId = payload.customerId || `${uniqueSyncId}_customer`;
+
+        if (!payload.customerId) {
+          await db.customers.put({
+            id: customerId,
+            fullName: payload.customerName || 'Offline Guest',
+            mobileNumber: payload.mobileNumber || '',
+            address: payload.address || null,
+            city: payload.city || null,
+            state: payload.state || null,
+            country: payload.country || null,
+            pincode: payload.pincode || null,
+            createdAt: checkInTime,
+            updatedAt: checkInTime,
+          });
+        }
+
+        const checkinRows = roomIds.length > 0 ? roomIds : [''];
+        for (const [index, roomId] of checkinRows.entries()) {
+          const checkinId = index === 0 ? uniqueSyncId : `${uniqueSyncId}_room_${index}`;
+          const roomPrice = Number(payload.roomPrices?.[roomId] || payload.pricePerNight || 0);
+
+          await db.checkins.put({
+            ...payload,
+            id: checkinId,
+            customerId,
+            roomId,
+            numberOfGuests: Number(payload.numberOfGuests || 1),
+            checkInTime,
+            expectedCheckOutDate: payload.expectedCheckOutDate || payload.arrivalDate || checkInTime,
+            advancePaid: Number(payload.advancePaid || 0),
+            remainingAmount: Number(payload.remainingAmount || 0),
+            pricePerNight: roomPrice,
+            status: 'ACTIVE',
+            createdAt: checkInTime,
+            updatedAt: checkInTime,
+          });
+
+          if (roomId) {
+            await db.rooms.update(roomId, {
+              status: 'OCCUPIED',
+              updatedAt: checkInTime,
+            });
+          }
+        }
       } else if (operationType === 'UPDATE') {
         const id = endpoint.split('/')[2] || uniqueSyncId;
         await db.checkins.update(id, payload);
       }
-    } else if (endpoint.startsWith('/checkouts')) {
+    } else if (endpoint.startsWith('/checkouts') || endpoint.startsWith('/stay/checkout')) {
       if (operationType === 'CREATE') {
-        await db.checkouts.put({ ...payload, id: uniqueSyncId, billingStatus: 'PAID' });
+        const checkoutTime =
+          payload.checkoutTimeISO ||
+          (payload.checkoutDate && payload.checkoutTime
+            ? new Date(`${payload.checkoutDate}T${payload.checkoutTime}`).toISOString()
+            : new Date().toISOString());
+
+        await db.checkouts.put({
+          ...payload,
+          id: uniqueSyncId,
+          checkInId: payload.checkInId,
+          roomCharges: Number(payload.roomCharges || 0),
+          additionalCharges: Number(payload.additionalCharges || 0),
+          discount: Number(payload.discount || 0),
+          taxAmount: Number(payload.taxAmount || 0),
+          finalAmount: Number(payload.finalAmount || 0),
+          billingStatus: 'PAID',
+          createdAt: checkoutTime,
+        });
+
+        if (payload.checkInId) {
+          const checkin = await db.checkins.get(payload.checkInId);
+          if (checkin) {
+            await db.checkins.update(payload.checkInId, {
+              status: 'CHECKED_OUT',
+              actualCheckOutTime: checkoutTime,
+              remainingAmount: 0,
+              updatedAt: checkoutTime,
+            });
+
+            if (checkin.roomId) {
+              await db.rooms.update(checkin.roomId, {
+                status: 'AVAILABLE',
+                updatedAt: checkoutTime,
+              });
+            }
+          }
+        }
       }
     } else if (endpoint.startsWith('/payments')) {
       if (operationType === 'CREATE') {

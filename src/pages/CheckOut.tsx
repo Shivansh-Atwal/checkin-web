@@ -51,6 +51,7 @@ const CheckOut: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  const [offlineCheckoutSaved, setOfflineCheckoutSaved] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [checkoutResults, setCheckoutResults] = useState<any[]>([]);
 
@@ -111,8 +112,24 @@ const CheckOut: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       queryClient.invalidateQueries({ queryKey: ['payment-ledger'] });
-      setInvoiceUrl(res.data.data.checkout.invoiceUrl);
-      setCheckoutResults(res.data.data.allCheckouts || [res.data.data.checkout]);
+      const checkout = res.data?.data?.checkout;
+      const allCheckouts = res.data?.data?.allCheckouts;
+
+      if (checkout) {
+        setOfflineCheckoutSaved(false);
+        setInvoiceUrl(checkout.invoiceUrl);
+        setCheckoutResults(allCheckouts || [checkout]);
+      } else {
+        setOfflineCheckoutSaved(true);
+        setInvoiceUrl(null);
+        setCheckoutResults([
+          {
+            id: res.data?.data?.id || checkInId,
+            roomNumber: checkIn?.room?.roomNumber || 'Offline',
+            invoiceUrl: null,
+          },
+        ]);
+      }
       setLoading(false);
     },
     onError: (err: any) => {
@@ -132,6 +149,9 @@ const CheckOut: React.FC = () => {
       additionalCharges,
       discount,
       taxRate,
+      roomCharges: calculations.roomCharges,
+      taxAmount: calculations.taxAmount,
+      finalAmount: calculations.finalAmount,
       paymentMethod,
       notes,
       checkoutDate,
@@ -151,7 +171,7 @@ const CheckOut: React.FC = () => {
         Back to Dashboard
       </button>
 
-      {invoiceUrl ? (
+      {invoiceUrl || offlineCheckoutSaved ? (
         /* Success Invoicing screen */
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-xl text-center space-y-6">
           <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
@@ -160,7 +180,9 @@ const CheckOut: React.FC = () => {
           <div>
             <h3 className="text-2xl font-bold text-white">Check-Out Completed Successfully!</h3>
             <p className="text-slate-400 text-sm mt-2">
-              Payment was settled. All ({checkoutResults.length}) rooms are now available for new check-ins.
+              {offlineCheckoutSaved
+                ? 'Check-out was saved offline. It will sync and generate the invoice when the server is reachable.'
+                : `Payment was settled. All (${checkoutResults.length}) rooms are now available for new check-ins.`}
             </p>
           </div>
 
@@ -168,6 +190,17 @@ const CheckOut: React.FC = () => {
             {checkoutResults.map((result: any, idx: number) => {
               const apiBase = api.defaults.baseURL || '';
               const backendHost = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+              if (!result.invoiceUrl) {
+                return (
+                  <div
+                    key={idx}
+                    className="px-6 py-3 bg-slate-950 text-slate-300 font-semibold rounded-xl text-xs border border-slate-700 flex items-center justify-center w-full"
+                  >
+                    <FileText className="w-4.5 h-4.5 mr-2" />
+                    Invoice pending sync (Room {result.roomNumber})
+                  </div>
+                );
+              }
               return (
                 <a
                   key={idx}

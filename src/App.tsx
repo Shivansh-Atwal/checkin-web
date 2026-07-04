@@ -3,6 +3,10 @@ import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useNetwork } from './hooks/useNetwork';
 import { SyncManager } from './services/SyncManager';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import api from './utils/api';
+
+// Online Screens (cloned from checkin-web)
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Rooms from './pages/Rooms';
@@ -17,6 +21,11 @@ import AuditLogs from './pages/AuditLogs';
 import Inventory from './pages/Inventory';
 import PreviousStay from './pages/PreviousStay';
 
+// Offline Screens (SQLite-based, kept as-is)
+import { OfflineDashboard } from './screens/offline/OfflineDashboard';
+import { OfflineBookingForm } from './screens/offline/OfflineBookingForm';
+import { OfflineBookingDetail } from './screens/offline/OfflineBookingDetail';
+
 import {
   LayoutDashboard,
   Bed,
@@ -30,7 +39,8 @@ import {
   X,
   Map,
   ClipboardList,
-  Package
+  Package,
+  WifiOff
 } from 'lucide-react';
 
 const PrivateLayout: React.FC = () => {
@@ -59,6 +69,7 @@ const PrivateLayout: React.FC = () => {
     { label: 'Stay Records', path: '/records', icon: ClipboardList, permission: 'reports.read' },
     { label: 'Inventory', path: '/inventory', icon: Package, permission: 'dashboard.view' },
     { label: 'Audit Logs', path: '/logs', icon: History, permission: 'auditlogs.read' },
+    { label: 'Offline Mode', path: '/offline', icon: WifiOff, permission: 'dashboard.view' },
   ];
 
   const renderNavLinks = () => {
@@ -110,9 +121,17 @@ const PrivateLayout: React.FC = () => {
   const renderSyncBanner = () => {
     if (!isOnline) {
       return (
-        <div className="bg-amber-600/90 backdrop-blur-sm text-white px-4 py-2 text-xs font-bold text-center flex items-center justify-center sticky top-0 z-50">
-          <span className="w-2 h-2 rounded-full bg-white mr-2 animate-ping shrink-0"></span>
-          Offline Mode — {pendingChangesCount} changes queued locally
+        <div className="bg-amber-600/90 backdrop-blur-sm text-white px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-3 sticky top-0 z-50">
+          <div className="flex items-center">
+            <span className="w-2 h-2 rounded-full bg-white mr-2 animate-ping shrink-0"></span>
+            Offline Mode — {pendingChangesCount} changes queued locally
+          </div>
+          <Link
+            to="/offline"
+            className="bg-slate-900 hover:bg-slate-950 text-white px-3 py-1 rounded-md text-[11px] font-bold transition-all border border-slate-800 shadow-sm ml-2"
+          >
+            Switch to SQLite Offline Mode
+          </Link>
         </div>
       );
     }
@@ -207,6 +226,14 @@ const PrivateLayout: React.FC = () => {
             <span className={`w-2 h-2 rounded-full mr-2 ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
             <span className="hidden sm:inline">{isOnline ? 'System Live (PostgreSQL)' : 'Offline Local Mode'}</span>
             <span className="sm:hidden">{isOnline ? 'Live' : 'Offline'}</span>
+            {!isOnline && (
+              <Link
+                to="/offline"
+                className="ml-3 bg-amber-600 hover:bg-amber-700 text-white font-bold px-2 py-0.5 rounded text-[10px] transition-colors"
+              >
+                Go to SQLite Mode
+              </Link>
+            )}
           </div>
         </header>
         <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
@@ -272,6 +299,32 @@ const App: React.FC = () => {
     }
   }, [isOnline, isAuthenticated]);
 
+  // Caching free rooms locally when online
+  React.useEffect(() => {
+    if (isOnline && isAuthenticated) {
+      api.get('/rooms?status=AVAILABLE')
+        .then((res) => {
+          const roomsData = res.data?.data || res.data || [];
+          localStorage.setItem('hotel_rooms_cache', JSON.stringify(roomsData));
+        })
+        .catch((err) => console.error('Failed to cache rooms:', err));
+    }
+  }, [isOnline, isAuthenticated]);
+
+  // Caching next registration number locally when online
+  React.useEffect(() => {
+    if (isOnline && isAuthenticated) {
+      localStorage.removeItem('offline_reg_counter');
+      api.get('/bookings/next-reg')
+        .then((res) => {
+          if (res.data && res.data.success && res.data.data) {
+            localStorage.setItem('next_online_reg_number', res.data.data);
+          }
+        })
+        .catch((err) => console.error('Failed to cache next reg number:', err));
+    }
+  }, [isOnline, isAuthenticated]);
+
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
@@ -284,6 +337,12 @@ const App: React.FC = () => {
   return (
     <Routes>
       <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/" replace />} />
+      {/* Offline screens mounted at root level to bypass checkin-web's sidebar layout */}
+      <Route path="/offline" element={<ProtectedRoute><OfflineDashboard /></ProtectedRoute>} />
+      <Route path="/offline/booking/new" element={<ProtectedRoute><OfflineBookingForm /></ProtectedRoute>} />
+      <Route path="/offline/booking/:id" element={<ProtectedRoute><OfflineBookingDetail /></ProtectedRoute>} />
+      <Route path="/offline/booking/:id/edit" element={<ProtectedRoute><OfflineBookingForm /></ProtectedRoute>} />
+      {/* All other routes fallback to the online dashboard layout */}
       <Route path="/*" element={<PrivateLayout />} />
     </Routes>
   );

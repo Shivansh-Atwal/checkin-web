@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../utils/api';
 import { useNavigate } from 'react-router-dom';
+import { useNetwork } from '../hooks/useNetwork';
 import { formatDate } from '../utils/dateFormatter';
 import {
   Bed,
@@ -44,6 +45,7 @@ const PRESET_ITEMS = [
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isOnline } = useNetwork();
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
   // Fetch Rooms
@@ -233,6 +235,26 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {!isOnline && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-scale-in">
+          <div>
+            <h3 className="text-amber-400 font-extrabold text-base flex items-center">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 mr-2.5 animate-pulse"></span>
+              PostgreSQL Database Offline
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 font-semibold">
+              The application is currently offline. You can switch to the SQLite Offline Mode to manage local check-ins and bookings.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/offline')}
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all shadow-md shrink-0 cursor-pointer"
+          >
+            Switch to SQLite Offline Mode
+          </button>
+        </div>
+      )}
+
       {/* Stats Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Rooms */}
