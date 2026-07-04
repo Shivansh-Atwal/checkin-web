@@ -35,6 +35,21 @@ interface BookingRow {
   updated_at: number;
 }
 
+interface ActiveStaySnapshot {
+  backendId: string;
+  registrationNumber: string | null;
+  customerName: string;
+  phoneNumber: string;
+  address: string;
+  aadhaarNumber: string;
+  selectedRooms: SelectedRoom[];
+  guests: number;
+  checkInDate: string;
+  checkInTime: string;
+  checkOutDate: string | null;
+  checkOutTime: string | null;
+}
+
 export class BookingRepository {
   private db = DatabaseService.getInstance();
   private syncQueue = new SyncQueueRepository();
@@ -85,6 +100,36 @@ export class BookingRepository {
       [id]
     );
     return rows[0] ? this.mapRow(rows[0]) : null;
+  }
+
+  async snapshotActiveCheckInsFromRoomCache(): Promise<number> {
+    let rooms: any[] = [];
+    try {
+      const cachedRoomsRaw = localStorage.getItem('hotel_rooms_cache');
+      rooms = cachedRoomsRaw ? JSON.parse(cachedRoomsRaw) : [];
+    } catch {
+      rooms = [];
+    }
+
+    const snapshots = rooms.flatMap((room) => this.mapRoomToActiveStaySnapshots(room));
+    let savedCount = 0;
+
+    for (const snapshot of snapshots) {
+      const existingRows = await this.db.query<BookingRow>(
+        'SELECT * FROM bookings WHERE backend_id = ? OR id = ? LIMIT 1',
+        [snapshot.backendId, `server-${snapshot.backendId}`]
+      );
+      const existing = existingRows[0] ? this.mapRow(existingRows[0]) : null;
+
+      if (existing && existing.syncStatus !== SYNC_STATUS.SYNCED) {
+        continue;
+      }
+
+      await this.saveSyncedSnapshot(snapshot, existing?.id);
+      savedCount++;
+    }
+
+    return savedCount;
   }
 
   async create(input: CreateBookingInput): Promise<OfflineBooking> {
@@ -174,6 +219,112 @@ export class BookingRepository {
     });
 
     return booking;
+  }
+
+  private mapRoomToActiveStaySnapshots(room: any): ActiveStaySnapshot[] {
+    const checkIns = Array.isArray(room?.checkIns) ? room.checkIns : [];
+    return checkIns
+      .filter((checkIn: any) => checkIn?.status === 'ACTIVE' || room?.status === 'OCCUPIED')
+      .map((checkIn: any) => {
+        const customer = checkIn.customer || {};
+        const document = Array.isArray(customer.documents) ? customer.documents[0] : null;
+        const address = JSON.stringify({
+          streetAddress: customer.address || '',
+          city: customer.city || '',
+          state: customer.state || '',
+          pincode: customer.pincode || '',
+          nationality: customer.country || 'INDIAN',
+        });
+        const idData = JSON.stringify({
+          idType: document?.idType || '',
+          idNumber: document?.idNumber || '',
+        });
+        const checkInDate = this.splitDateTime(checkIn.checkInTime);
+        const checkOutDate = this.splitDateTime(checkIn.actualCheckOutTime || checkIn.expectedCheckOutDate);
+
+        return {
+          backendId: checkIn.bookingId || checkIn.id,
+          registrationNumber: checkIn.registrationNumber || null,
+          customerName: customer.fullName || 'Guest',
+          phoneNumber: customer.mobileNumber || '',
+          address,
+          aadhaarNumber: encryptSensitive(idData),
+          selectedRooms: [{
+            roomNumber: room.roomNumber,
+            price: Number(checkIn.pricePerNight || room.pricePerNight || 0),
+          }],
+          guests: Number(checkIn.numberOfGuests || 1),
+          checkInDate: checkInDate.date,
+          checkInTime: checkInDate.time,
+          checkOutDate: checkOutDate.date,
+          checkOutTime: checkOutDate.time,
+        };
+      });
+  }
+
+  private splitDateTime(value: string | null | undefined): { date: string; time: string } {
+    if (!value) return { date: new Date().toISOString().split('T')[0], time: '' };
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      const [date = new Date().toISOString().split('T')[0], time = ''] = String(value).split('T');
+      return { date, time: time.slice(0, 5) };
+    }
+    return {
+      date: parsed.toISOString().split('T')[0],
+      time: parsed.toTimeString().slice(0, 5),
+    };
+  }
+
+  private async saveSyncedSnapshot(snapshot: ActiveStaySnapshot, existingId?: string): Promise<void> {
+    const id = existingId || `server-${snapshot.backendId}`;
+    const now = Date.now();
+
+    await this.db.run(
+      `INSERT INTO bookings (
+        id, temp_registration_number, registration_number, customer_name,
+        phone_number, address, aadhaar_number_encrypted, booking_status,
+        selected_rooms, guests, check_in_date, check_in_time,
+        check_out_date, check_out_time, sync_status, sync_error, backend_id,
+        is_deleted, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 0, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        registration_number = excluded.registration_number,
+        customer_name = excluded.customer_name,
+        phone_number = excluded.phone_number,
+        address = excluded.address,
+        aadhaar_number_encrypted = excluded.aadhaar_number_encrypted,
+        selected_rooms = excluded.selected_rooms,
+        guests = excluded.guests,
+        check_in_date = excluded.check_in_date,
+        check_in_time = excluded.check_in_time,
+        check_out_date = excluded.check_out_date,
+        check_out_time = excluded.check_out_time,
+        sync_status = excluded.sync_status,
+        sync_error = NULL,
+        backend_id = excluded.backend_id,
+        is_deleted = 0,
+        updated_at = excluded.updated_at`,
+      [
+        id,
+        snapshot.registrationNumber || `ONLINE-${snapshot.backendId}`,
+        snapshot.registrationNumber,
+        snapshot.customerName,
+        snapshot.phoneNumber,
+        snapshot.address,
+        snapshot.aadhaarNumber,
+        'Check In',
+        JSON.stringify(snapshot.selectedRooms),
+        snapshot.guests,
+        snapshot.checkInDate,
+        snapshot.checkInTime,
+        snapshot.checkOutDate,
+        snapshot.checkOutTime,
+        SYNC_STATUS.SYNCED,
+        snapshot.backendId,
+        now,
+        now,
+      ]
+    );
   }
 
   async update(input: UpdateBookingInput): Promise<OfflineBooking | null> {
@@ -361,9 +512,17 @@ export class BookingRepository {
     }
 
     const pricePerNight = booking.selectedRooms[0]?.price || 0;
+    const status =
+      booking.bookingStatus === 'Check Out'
+        ? 'CHECKED_OUT'
+        : booking.bookingStatus === 'Check In'
+          ? 'CHECKED_IN'
+          : 'CONFIRMED';
 
     return {
       clientId: booking.id,
+      bookingStatus: booking.bookingStatus,
+      status,
       numberOfGuests: Number(booking.guests),
       arrivalDate,
       arrivalTime,

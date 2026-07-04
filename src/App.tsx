@@ -299,10 +299,10 @@ const App: React.FC = () => {
     }
   }, [isOnline, isAuthenticated]);
 
-  // Caching free rooms locally when online
+  // Caching rooms locally when online
   React.useEffect(() => {
     if (isOnline && isAuthenticated) {
-      api.get('/rooms?status=AVAILABLE')
+      api.get('/rooms')
         .then((res) => {
           const roomsData = res.data?.data || res.data || [];
           localStorage.setItem('hotel_rooms_cache', JSON.stringify(roomsData));

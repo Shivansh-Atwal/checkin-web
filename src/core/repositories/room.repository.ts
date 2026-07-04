@@ -69,6 +69,12 @@ export class RoomRepository {
     const rooms = response.data as unknown as Array<Record<string, unknown>>;
     const now = Date.now();
 
+    try {
+      localStorage.setItem('hotel_rooms_cache', JSON.stringify(rooms));
+    } catch {
+      // SQLite cache is the source of truth if localStorage is unavailable.
+    }
+
     await this.db.run('DELETE FROM rooms_cache');
 
     for (const room of rooms) {

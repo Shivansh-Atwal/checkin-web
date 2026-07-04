@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   bootstrapApp,
   NetworkService,
@@ -52,6 +52,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const bookingRepo = useMemo(() => new BookingRepository(), []);
   const roomRepo = useMemo(() => new RoomRepository(), []);
   const authService = useMemo(() => AuthService.getInstance(), []);
+  const wasOnlineRef = useRef(true);
 
   const refreshBookings = useCallback(async () => {
     const data = await bookingRepo.getAll();
@@ -101,6 +102,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await refreshBookings();
   }, [refreshBookings]);
 
+  const snapshotActiveCheckIns = useCallback(async () => {
+    const saved = await bookingRepo.snapshotActiveCheckInsFromRoomCache();
+    if (saved > 0) {
+      await refreshBookings();
+    }
+  }, [bookingRepo, refreshBookings]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -116,6 +124,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           refreshChecklist(),
           refreshStats(),
         ]);
+        if (!result.isOnline) {
+          await snapshotActiveCheckIns();
+        }
         setReady(true);
       } catch (error) {
         console.error('Bootstrap failed:', error);
@@ -123,7 +134,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
-    const unsubNetwork = NetworkService.getInstance().subscribe(setNetworkStatus);
+    const unsubNetwork = NetworkService.getInstance().subscribe((status) => {
+      setNetworkStatus(status);
+      const isOnlineNow = status.isConnected && status.isInternetReachable && status.state !== 'offline';
+      if (!isOnlineNow && wasOnlineRef.current) {
+        void snapshotActiveCheckIns();
+      }
+      wasOnlineRef.current = isOnlineNow;
+    });
     const unsubSync = SyncManager.getInstance().subscribe((_result: SyncResult) => {
       void refreshBookings();
       void refreshRooms();
@@ -135,7 +153,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unsubNetwork();
       unsubSync();
     };
-  }, [refreshBookings, refreshRooms, refreshChecklist, refreshStats]);
+  }, [refreshBookings, refreshRooms, refreshChecklist, refreshStats, snapshotActiveCheckIns]);
 
   const value: AppContextValue = {
     ready,
