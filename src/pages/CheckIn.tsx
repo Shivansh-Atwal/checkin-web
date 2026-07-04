@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { getBackendUrl } from '../utils/api';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckSquare, Clock, Calendar, ShieldAlert, Loader2, Camera, Upload, X, RotateCw } from 'lucide-react';
+import { ArrowLeft, CheckSquare, Clock, Calendar, ShieldAlert, Loader2, Camera, Upload, X, RotateCw, Flashlight } from 'lucide-react';
 import citiesData from '../utils/cities.json';
 
 const indianStates = Array.from(new Set(citiesData.map((c: any) => c.state))).sort();
@@ -199,6 +199,8 @@ const CheckIn: React.FC = () => {
   const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
   const [cameraActiveTarget, setCameraActiveTarget] = useState<{
     type: 'documents' | 'customers';
     setUrl: (url: string) => void;
@@ -226,6 +228,8 @@ const CheckIn: React.FC = () => {
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop());
     }
+    setTorchSupported(false);
+    setTorchOn(false);
 
     try {
       const constraints: MediaStreamConstraints = {
@@ -234,6 +238,11 @@ const CheckIn: React.FC = () => {
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       setCameraStream(stream);
+      const videoTrack = stream.getVideoTracks()[0] as MediaStreamTrack & {
+        getCapabilities?: () => MediaTrackCapabilities & { torch?: boolean };
+      };
+      const capabilities = videoTrack?.getCapabilities?.() as (MediaTrackCapabilities & { torch?: boolean }) | undefined;
+      setTorchSupported(Boolean(capabilities?.torch));
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
@@ -258,6 +267,23 @@ const CheckIn: React.FC = () => {
     }
   };
 
+  const toggleTorch = async () => {
+    const track = cameraStream?.getVideoTracks()[0] as MediaStreamTrack & {
+      applyConstraints?: (constraints: MediaTrackConstraints & { advanced?: Array<{ torch?: boolean }> }) => Promise<void>;
+    };
+    if (!track || !torchSupported) return;
+
+    const nextTorchState = !torchOn;
+    try {
+      await track.applyConstraints?.({ advanced: [{ torch: nextTorchState }] });
+      setTorchOn(nextTorchState);
+    } catch (err) {
+      console.error('Torch toggle failed:', err);
+      setTorchSupported(false);
+      setTorchOn(false);
+    }
+  };
+
   const openCamera = (
     type: 'documents' | 'customers',
     setUrl: (url: string) => void,
@@ -279,6 +305,8 @@ const CheckIn: React.FC = () => {
     setCameraOpen(false);
     setCameraActiveTarget(null);
     setCapturedPhoto(null);
+    setTorchSupported(false);
+    setTorchOn(false);
   };
 
   const capturePhoto = () => {
@@ -1340,6 +1368,20 @@ const CheckIn: React.FC = () => {
                 </>
               ) : (
                 <>
+                  {torchSupported && (
+                    <button
+                      type="button"
+                      onClick={toggleTorch}
+                      className={`px-4 py-2 text-xs font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 border ${
+                        torchOn
+                          ? 'bg-amber-500/15 border-amber-400/40 text-amber-200 hover:bg-amber-500/25'
+                          : 'bg-slate-800 border-slate-700 text-slate-350 hover:bg-slate-700 hover:text-white'
+                      }`}
+                    >
+                      <Flashlight className="w-3.5 h-3.5" />
+                      {torchOn ? 'Flash On' : 'Flash'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={closeCamera}

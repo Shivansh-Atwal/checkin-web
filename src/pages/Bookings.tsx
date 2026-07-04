@@ -674,10 +674,15 @@ const Bookings: React.FC = () => {
               border-radius: 50%;
               margin: 0 auto;
             }
-            .no-print-btn {
+            .no-print-actions {
               position: fixed;
               bottom: 20px;
               right: 20px;
+              display: flex;
+              gap: 10px;
+              z-index: 10;
+            }
+            .no-print-btn {
               background-color: #2563eb;
               color: #ffffff;
               border: none;
@@ -691,6 +696,13 @@ const Bookings: React.FC = () => {
             }
             .no-print-btn:hover {
               background-color: #1d4ed8;
+            }
+            .no-print-btn.secondary {
+              background-color: #0f172a;
+              box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+            }
+            .no-print-btn.secondary:hover {
+              background-color: #1e293b;
             }
             
             /* Responsive styles for mobile devices */
@@ -721,11 +733,14 @@ const Bookings: React.FC = () => {
               .photo-card {
                 grid-column: span 1;
               }
-              .no-print-btn {
+              .no-print-actions {
                 position: fixed;
                 left: 16px;
                 right: 16px;
                 bottom: 16px;
+                flex-direction: column;
+              }
+              .no-print-btn {
                 width: calc(100% - 32px);
                 box-sizing: border-box;
                 text-align: center;
@@ -813,7 +828,10 @@ const Bookings: React.FC = () => {
             ` : ''}
           </div>
 
-          <button class="no-print no-print-btn" onclick="window.print()">Print / Save as PDF</button>
+          <div class="no-print no-print-actions">
+            <button class="no-print-btn secondary" onclick="window.close()">Back to HotelFlow</button>
+            <button class="no-print-btn" onclick="window.print()">Print / Save as PDF</button>
+          </div>
 
           <script>
             // Auto open the print dialog when images load

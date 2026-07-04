@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import { Map, TrendingUp, Calendar, Bed, Users, ClipboardList } from 'lucide-react';
 import { formatDate } from '../utils/dateFormatter';
+import { downloadTextFile } from '../utils/download';
 
 interface StateWiseSummary {
   state: string;
@@ -80,10 +81,10 @@ const Reports: React.FC = () => {
   };
 
   // CSV Exporter for state-wise records
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!reportData.stateWiseData?.length) return;
 
-    let csvContent = 'data:text/csv;charset=utf-8,';
+    let csvContent = '';
     csvContent += 'State,Total Guests / Stays,Total Bednights Spent\n';
     
     reportData.stateWiseData.forEach((stat) => {
@@ -91,13 +92,7 @@ const Reports: React.FC = () => {
       csvContent += `${escapedState},${stat.customers},${stat.bednights}\n`;
     });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'hotelflow_state_wise_report.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadTextFile('hotelflow_state_wise_report.csv', csvContent);
   };
 
   const isLoading = reportsLoading;

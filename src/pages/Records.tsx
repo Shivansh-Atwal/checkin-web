@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { FileDown, Search, ClipboardList, Calendar } from 'lucide-react';
 import { formatDate } from '../utils/dateFormatter';
 import { Link } from 'react-router-dom';
+import { downloadTextFile } from '../utils/download';
 
 interface StayRecord {
   id: string;
@@ -80,10 +81,10 @@ const Records: React.FC = () => {
   });
 
   // CSV Exporter for detailed records
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!filteredRecords.length) return;
 
-    let csvContent = 'data:text/csv;charset=utf-8,';
+    let csvContent = '';
     csvContent += 'Check-In Date,Check-Out Date,Guest Name,Mobile Number,Complete Address,ID Card Type,ID Card Number,State,Nationality,Room Number,Room Price,No of Members,Bednights Spent,Status\n';
     
     filteredRecords.forEach((ci) => {
@@ -96,13 +97,7 @@ const Records: React.FC = () => {
       csvContent += `${formattedCheckInDate},${formattedCheckOutDate},${escapedName},${ci.mobileNumber},${escapedAddress},${ci.idCardType},${ci.idCardNumber},${ci.state},${ci.nationality},${ci.roomNumber},${ci.roomPrice},${ci.numberOfGuests},${ci.bednights},${ci.status}\n`;
     });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'hotelflow_detailed_stay_report.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadTextFile('hotelflow_detailed_stay_report.csv', csvContent);
   };
 
   return (

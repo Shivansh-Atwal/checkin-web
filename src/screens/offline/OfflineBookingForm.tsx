@@ -5,7 +5,25 @@ import { BookingRepository, TxtBackupService } from '@core/index';
 import { useApp } from '../../context/AppContext';
 import { BOOKING_STATUS } from '@core/constants';
 
-const emptyForm = {
+interface OfflineBookingFormState {
+  customerName: string;
+  phoneNumber: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  pincode: string;
+  nationality: string;
+  idType: string;
+  idNumber: string;
+  bookingStatus: BookingStatus;
+  guests: string;
+  checkInDate: string;
+  checkInTime: string;
+  checkOutDate: string;
+  checkOutTime: string;
+}
+
+const emptyForm: OfflineBookingFormState = {
   customerName: '',
   phoneNumber: '',
   streetAddress: '',
@@ -16,7 +34,7 @@ const emptyForm = {
   idType: 'AADHAAR CARD',
   idNumber: '',
   bookingStatus: 'Booked' as BookingStatus,
-  guests: 1,
+  guests: '',
   checkInDate: new Date().toISOString().split('T')[0],
   checkInTime: new Date().toTimeString().slice(0, 5),
   checkOutDate: '',
@@ -87,7 +105,7 @@ export function OfflineBookingForm() {
         idType,
         idNumber,
         bookingStatus: booking.bookingStatus,
-        guests: booking.guests,
+        guests: String(booking.guests),
         checkInDate: booking.checkInDate,
         checkInTime: booking.checkInTime,
         checkOutDate: booking.checkOutDate ?? '',
@@ -128,6 +146,12 @@ export function OfflineBookingForm() {
       return;
     }
 
+    const guests = Number(form.guests);
+    if (!Number.isInteger(guests) || guests < 1) {
+      setError('Enter number of guests.');
+      return;
+    }
+
     if (selectedRooms.size === 0) {
       setError('Select at least one room.');
       return;
@@ -159,7 +183,7 @@ export function OfflineBookingForm() {
         aadhaarNumber: JSON.stringify(idData),
         bookingStatus: form.bookingStatus,
         selectedRooms: roomsList,
-        guests: form.guests,
+        guests,
         checkInDate: form.checkInDate,
         checkInTime: form.checkInTime,
         checkOutDate: form.bookingStatus === 'Check Out' ? form.checkOutDate || null : null,
@@ -284,8 +308,16 @@ export function OfflineBookingForm() {
         )}
 
         <div className="form-group">
-          <label className="label">Guests</label>
-          <input className="input" type="number" min={1} value={form.guests} onChange={(e) => setForm({ ...form, guests: parseInt(e.target.value, 10) || 1 })} />
+          <label className="label">Number of Guests *</label>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            value={form.guests}
+            onChange={(e) => setForm({ ...form, guests: e.target.value })}
+            placeholder="Enter number of guests"
+            required
+          />
         </div>
 
         <h3 className="section-title">Select Rooms</h3>
