@@ -531,6 +531,8 @@ export class BookingRepository {
       checkInTime: checkInISO,
       expectedCheckOutDate,
       checkOutDate: expectedCheckOutDate,
+      checkoutDate: booking.checkOutDate || undefined,
+      checkoutTime: booking.checkOutTime || undefined,
       advancePaid: 0,
       remainingAmount: totalPrice,
       paymentMethod: 'CASH',

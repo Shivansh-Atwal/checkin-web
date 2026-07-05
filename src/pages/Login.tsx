@@ -242,13 +242,12 @@ const Login: React.FC = () => {
           </button>
         </form>
 
-        {mode === 'login' && (
-          <div className="mt-6 border-t border-slate-800 pt-5 text-center text-xs text-slate-500">
-            <p>Demo accounts (Leave Hotel ID empty):</p>
-            <p className="mt-1">Admin: <span className="text-slate-350">admin@hotelflow.com / admin123</span></p>
-            <p className="mt-0.5">Staff: <span className="text-slate-350">staff@hotelflow.com / staff123</span></p>
-          </div>
-        )}
+        <div className="mt-6 border-t border-slate-800 pt-5 text-center text-xs text-slate-500">
+          <p>
+            For Subscription contact to{' '}
+            <span className="text-slate-350">info.hotellflow@gmail.com</span>
+          </p>
+        </div>
       </div>
     </div>
   );
