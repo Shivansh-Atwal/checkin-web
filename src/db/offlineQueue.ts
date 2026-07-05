@@ -12,13 +12,19 @@ export const enqueueOperation = async (
   payload: any,
   uniqueSyncId: string
 ): Promise<string> => {
+  let queuedPayload = payload;
+
+  if (endpoint.startsWith('/checkouts') || endpoint.startsWith('/stay/checkout')) {
+    queuedPayload = await buildCheckoutPayloadSnapshot(payload);
+  }
+
   const id = generateUUID();
   const operation: QueuedOperation = {
     id,
     operationType,
     endpoint,
     method,
-    payload,
+    payload: queuedPayload,
     timestamp: Date.now(),
     status: 'PENDING',
     uniqueSyncId,
@@ -27,6 +33,57 @@ export const enqueueOperation = async (
   await db.offlineQueue.put(operation);
   console.log(`[Offline Queue] Enqueued: ${method} ${endpoint}`, operation);
   return id;
+};
+
+const splitIsoDateTime = (value?: string | null) => {
+  if (!value) return { date: undefined, time: undefined };
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return { date: undefined, time: undefined };
+  return {
+    date: parsed.toISOString().split('T')[0],
+    time: parsed.toTimeString().slice(0, 5),
+  };
+};
+
+const buildCheckoutPayloadSnapshot = async (payload: any) => {
+  if (!payload?.checkInId) return payload;
+
+  const checkin: any = await db.checkins.get(payload.checkInId);
+  if (!checkin) return payload;
+
+  const [customer, room] = await Promise.all([
+    checkin.customerId ? db.customers.get(checkin.customerId) : undefined,
+    checkin.roomId ? db.rooms.get(checkin.roomId) : undefined,
+  ]);
+
+  const checkInParts = splitIsoDateTime(checkin.checkInTime);
+
+  return {
+    ...payload,
+    offlineHistoricalCheckout: true,
+    originalCheckInId: checkin.id,
+    customerId: checkin.customerId,
+    customerName: (customer as any)?.fullName || checkin.customerName,
+    mobileNumber: (customer as any)?.mobileNumber || checkin.mobileNumber,
+    address: (customer as any)?.address || checkin.address,
+    city: (customer as any)?.city || checkin.city,
+    state: (customer as any)?.state || checkin.state,
+    country: (customer as any)?.country || checkin.country,
+    pincode: (customer as any)?.pincode || checkin.pincode,
+    document: (customer as any)?.documents?.[0] || checkin.document,
+    roomId: checkin.roomId,
+    roomIds: checkin.roomId ? [checkin.roomId] : [],
+    roomNumber: (room as any)?.roomNumber || checkin.roomNumber,
+    numberOfGuests: checkin.numberOfGuests || 1,
+    checkInTime: checkin.checkInTime,
+    arrivalDate: payload.arrivalDate || checkInParts.date,
+    arrivalTime: payload.arrivalTime || checkInParts.time,
+    expectedCheckOutDate: payload.checkoutTimeISO || payload.expectedCheckOutDate,
+    advancePaid: Number(checkin.advancePaid || 0),
+    remainingAmount: Number(checkin.remainingAmount || 0),
+    pricePerNight: Number(checkin.pricePerNight || payload.pricePerNight || 0),
+    registrationNumber: checkin.registrationNumber || payload.registrationNumber,
+  };
 };
 
 // Optimistically update the local IndexedDB state based on the queued operation
