@@ -470,8 +470,9 @@ const CheckIn: React.FC = () => {
   const getRoomNumber = (id: string) => {
     const r = rooms.find((x) => x.id === id);
     if (r) return r.roomNumber;
-    if (bookingRes?.data?.room && bookingRes.data.roomId === id) {
-      return bookingRes.data.room.roomNumber;
+    if (bookingRes?.data?.rooms) {
+      const brRoom = bookingRes.data.rooms.find((br: any) => br.id === id);
+      if (brRoom) return brRoom.roomNumber;
     }
     return 'Prefilled';
   };

@@ -466,7 +466,7 @@ const Dashboard: React.FC = () => {
                               {roomDetailsRes.data.checkIns[0].otherCheckIns.map((other: any) => (
                                 <div key={other.id} className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-3 text-xs space-y-1.5">
                                   <div className="flex justify-between items-center">
-                                    <span className="font-bold text-white font-mono">Room {other.room.roomNumber}</span>
+                                    <span className="font-bold text-white font-mono">Room(s) {other.rooms?.map((r: any) => r.roomNumber).join(', ')}</span>
                                     <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/20">Occupied</span>
                                   </div>
                                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-slate-400">
@@ -677,7 +677,7 @@ const Dashboard: React.FC = () => {
                               {roomDetailsRes.data.bookings[0].otherBookings.map((other: any) => (
                                 <div key={other.id} className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-3 text-xs space-y-1.5">
                                   <div className="flex justify-between items-center">
-                                    <span className="font-bold text-white font-mono">Room {other.room.roomNumber}</span>
+                                    <span className="font-bold text-white font-mono">Room(s) {other.rooms?.map((r: any) => r.roomNumber).join(', ')}</span>
                                     <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-355 border border-amber-500/20">Booked</span>
                                   </div>
                                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-slate-400">

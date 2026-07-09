@@ -853,17 +853,16 @@ const Bookings: React.FC = () => {
 
   const selectRooms = React.useMemo(() => {
     if (editingBooking) {
-      const alreadyIncluded = rooms.some((r) => r.id === editingBooking.roomId);
-      if (!alreadyIncluded && editingBooking.room) {
-        return [
-          {
-            id: editingBooking.roomId,
-            roomNumber: editingBooking.room.roomNumber,
-            roomType: editingBooking.room.roomType,
-            status: 'CURRENTLY ASSIGNED'
-          },
-          ...rooms
-        ];
+      // If editingBooking has rooms, add the ones not in `rooms`
+      const assignedRooms = (editingBooking as any).rooms || [];
+      const newAssigned = assignedRooms.filter((ar: any) => !rooms.some((r) => r.id === ar.id)).map((ar: any) => ({
+        id: ar.id,
+        roomNumber: ar.roomNumber,
+        roomType: ar.roomType,
+        status: 'CURRENTLY ASSIGNED'
+      }));
+      if (newAssigned.length > 0) {
+        return [...newAssigned, ...rooms];
       }
     }
     return rooms;

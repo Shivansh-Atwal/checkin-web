@@ -19,10 +19,11 @@ interface CheckIn {
       idNumber: string;
     }>;
   };
-  room: {
+  rooms: {
+    id: string;
     roomNumber: string;
-    roomType: string;
-  };
+  }[];
+  roomType: string;
   registrationNumber?: string;
 }
 
@@ -74,7 +75,7 @@ const CheckOut: React.FC = () => {
     return (
       stay.customer.fullName.toLowerCase().includes(term) ||
       stay.customer.mobileNumber.includes(term) ||
-      stay.room.roomNumber.toLowerCase().includes(term) ||
+      stay.rooms.map((r: any) => r.roomNumber).join(', ').toLowerCase().includes(term) ||
       (stay.registrationNumber && stay.registrationNumber.toLowerCase().includes(term))
     );
   });
@@ -125,7 +126,7 @@ const CheckOut: React.FC = () => {
         setCheckoutResults([
           {
             id: res.data?.data?.id || checkInId,
-            roomNumber: checkIn?.room?.roomNumber || 'Offline',
+            roomNumber: checkIn?.rooms?.map((r: any) => r.roomNumber).join(', ') || 'Offline',
             invoiceUrl: null,
           },
         ]);
@@ -271,7 +272,7 @@ const CheckOut: React.FC = () => {
                               <p className="text-xs text-slate-400 mt-1 font-mono">{stay.customer.mobileNumber}</p>
                             </div>
                             <div className="bg-blue-500/10 text-blue-400 text-xs px-2.5 py-1.5 rounded-lg font-bold font-mono">
-                              Room {stay.room.roomNumber}
+                              Room(s) {stay.rooms?.map((r: any) => r.roomNumber).join(', ')}
                             </div>
                           </div>
                           <div className="border-t border-slate-900 pt-2.5 mt-1 flex justify-between items-end">
@@ -329,7 +330,7 @@ const CheckOut: React.FC = () => {
                       ))
                     ) : (
                       <div>
-                        <p className="font-semibold text-white">Room {checkIn.room.roomNumber}</p>
+                        <p className="font-semibold text-white">Room(s) {checkIn.rooms?.map((r: any) => r.roomNumber).join(', ')}</p>
                         <p className="text-[11px] text-slate-400 font-normal mt-0.5">
                           Check-In: {new Date(checkIn.checkInTime).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                         </p>

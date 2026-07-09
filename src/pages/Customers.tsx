@@ -429,7 +429,9 @@ const Customers: React.FC = () => {
                         customerHistory?.bookings?.map((b: any) => (
                           <div key={b.id} className="bg-slate-950/20 border border-slate-850 p-4 rounded-xl flex justify-between items-center text-xs">
                             <div className="space-y-1">
-                              <p className="font-semibold text-slate-200">Room {b.room.roomNumber}</p>
+                              <p className="font-semibold text-slate-200">
+                                Room {b.rooms?.map((r: any) => r.roomNumber).join(', ') || 'N/A'}
+                              </p>
                               <p className="text-slate-400">
                                 {formatDate(b.checkInDate)} - {formatDate(b.checkOutDate)}
                               </p>
