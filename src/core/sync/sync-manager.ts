@@ -158,9 +158,7 @@ export class SyncManager {
         if (item.entityType === 'booking' && booking) {
           if (item.method === 'POST') {
             payload = this.bookingRepo.toApiPayload(booking);
-            endpoint = booking.bookingStatus === 'Check Out'
-              ? '/stay/checkin/previous'
-              : '/stay/checkin/walkin';
+            endpoint = '/stay/checkin/walkin';
           } else if ((item.method === 'PUT' || item.method === 'PATCH') && booking.backendId) {
             payload = this.bookingRepo.toApiPayload(booking);
             endpoint = `/bookings/${booking.backendId}`;

@@ -134,7 +134,7 @@ export class BookingRepository {
 
   async create(input: CreateBookingInput): Promise<OfflineBooking> {
     const id = generateId('booking');
-    
+
     // Continuous registration number generation
     let tempReg = '';
     try {
@@ -477,11 +477,11 @@ export class BookingRepository {
     // Look up PostgreSQL room IDs from cached rooms list
     const cachedRoomsRaw = localStorage.getItem('hotel_rooms_cache');
     const cachedRooms: any[] = cachedRoomsRaw ? JSON.parse(cachedRoomsRaw) : [];
-    
+
     const roomIds: string[] = [];
     const roomPrices: Record<string, number> = {};
     let totalPrice = 0;
-    
+
     booking.selectedRooms.forEach((r: any) => {
       const match = cachedRooms.find((cr) => cr.roomNumber === r.roomNumber);
       if (match) {
@@ -531,8 +531,6 @@ export class BookingRepository {
       checkInTime: checkInISO,
       expectedCheckOutDate,
       checkOutDate: expectedCheckOutDate,
-      checkoutDate: booking.checkOutDate || undefined,
-      checkoutTime: booking.checkOutTime || undefined,
       advancePaid: 0,
       remainingAmount: totalPrice,
       paymentMethod: 'CASH',
